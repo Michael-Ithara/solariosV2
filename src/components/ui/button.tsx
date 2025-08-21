@@ -18,6 +18,10 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        energy: "bg-gradient-energy text-primary-foreground hover:opacity-90 shadow-energy transition-all hover:shadow-glow",
+        solar: "bg-energy-solar text-energy-solar-foreground hover:bg-energy-solar/90",
+        grid: "bg-energy-grid text-energy-grid-foreground hover:bg-energy-grid/90",
+        consumption: "bg-energy-consumption text-energy-consumption-foreground hover:bg-energy-consumption/90",
       },
       size: {
         default: "h-10 px-4 py-2",

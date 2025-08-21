@@ -26,7 +26,8 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					glow: 'hsl(var(--primary-glow))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -61,7 +62,40 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				energy: {
+					solar: 'hsl(var(--energy-solar))',
+					'solar-foreground': 'hsl(var(--energy-solar-foreground))',
+					grid: 'hsl(var(--energy-grid))',
+					'grid-foreground': 'hsl(var(--energy-grid-foreground))',
+					consumption: 'hsl(var(--energy-consumption))',
+					'consumption-foreground': 'hsl(var(--energy-consumption-foreground))'
+				},
+				success: {
+					DEFAULT: 'hsl(var(--success))',
+					foreground: 'hsl(var(--success-foreground))'
+				},
+				warning: {
+					DEFAULT: 'hsl(var(--warning))',
+					foreground: 'hsl(var(--warning-foreground))'
+				},
+				danger: {
+					DEFAULT: 'hsl(var(--danger))',
+					foreground: 'hsl(var(--danger-foreground))'
 				}
+			},
+			backgroundImage: {
+				'gradient-energy': 'var(--gradient-energy)',
+				'gradient-solar': 'var(--gradient-solar)',
+				'gradient-grid': 'var(--gradient-grid)',
+				'gradient-consumption': 'var(--gradient-consumption)'
+			},
+			boxShadow: {
+				'energy': 'var(--shadow-energy)',
+				'glow': 'var(--shadow-glow)'
+			},
+			transitionTimingFunction: {
+				'smooth': 'var(--transition-smooth)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
