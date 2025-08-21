@@ -14,9 +14,11 @@ import { EnergyChart } from "@/components/charts/EnergyChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert as AlertComponent, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { useCurrency } from "@/hooks/useCurrency";
 
 // Mock data
-const dashboardData = {
+// Mock data
+const baseDashboardData = {
   currentPower: 4.2,
   solarProduction: 6.8,
   gridUsage: 0,
@@ -50,6 +52,12 @@ const alerts = [
 ];
 
 export default function Dashboard() {
+  const { currency, formatCurrency, convertFromUSD, isLoading: currencyLoading } = useCurrency();
+  
+  const dashboardData = {
+    ...baseDashboardData,
+    monthlySavings: convertFromUSD(baseDashboardData.monthlySavings)
+  };
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header */}
@@ -184,7 +192,9 @@ export default function Dashboard() {
             <Lightbulb className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${dashboardData.monthlySavings}</div>
+            <div className="text-2xl font-bold">
+              {currencyLoading ? '...' : formatCurrency(dashboardData.monthlySavings)}
+            </div>
             <p className="text-xs text-muted-foreground">
               Compared to grid-only usage
             </p>

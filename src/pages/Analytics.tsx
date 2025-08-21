@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EnergyChart } from "@/components/charts/EnergyChart";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Badge } from "@/components/ui/badge";
+import { useCurrency } from "@/hooks/useCurrency";
 
 // Mock analytics data
 const analyticsData = {
@@ -44,13 +45,17 @@ const analyticsData = {
     },
     {
       type: "info",
-      title: "Grid Export Opportunity",
-      description: "You exported 25.8 kWh to the grid this week, earning $12.90"
+      title: "Grid Export Opportunity", 
+      description: "You exported 25.8 kWh to the grid this week"
     }
   ]
 };
 
 export default function Analytics() {
+  const { currency, formatCurrency, convertFromUSD } = useCurrency();
+  
+  // Calculate earnings in local currency
+  const weeklyExportEarnings = convertFromUSD(12.90);
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header */}
@@ -174,6 +179,9 @@ export default function Analytics() {
                     <h4 className="font-medium">{insight.title}</h4>
                     <p className="text-sm text-muted-foreground mt-1">
                       {insight.description}
+                      {insight.title === "Grid Export Opportunity" && 
+                        `, earning ${formatCurrency(weeklyExportEarnings)}`
+                      }
                     </p>
                   </div>
                   <Badge variant="outline" className={

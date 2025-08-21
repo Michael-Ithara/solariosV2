@@ -9,7 +9,7 @@ import {
   Save,
   RotateCcw
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +17,40 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { useCurrency } from "@/hooks/useCurrency";
 
 export default function Settings() {
+  const { currency, formatRate, manuallySetCurrency, availableCountries, isLoading } = useCurrency();
+  
+  const currencyMap: Record<string, { code: string; symbol: string; name: string; rate: number }> = {
+    'DE': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.30 },
+    'FR': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.28 },
+    'ES': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.25 },
+    'IT': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.32 },
+    'NL': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.35 },
+    'GB': { code: 'GBP', symbol: '£', name: 'British Pound', rate: 0.25 },
+    'US': { code: 'USD', symbol: '$', name: 'US Dollar', rate: 0.12 },
+    'CA': { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', rate: 0.16 },
+    'AU': { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rate: 0.18 },
+    'JP': { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rate: 18 },
+    'IN': { code: 'INR', symbol: '₹', name: 'Indian Rupee', rate: 10 },
+    'SG': { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', rate: 0.17 }
+  };
+  
+  const countryNames: Record<string, string> = {
+    'DE': 'Germany',
+    'FR': 'France', 
+    'ES': 'Spain',
+    'IT': 'Italy',
+    'NL': 'Netherlands',
+    'GB': 'United Kingdom',
+    'US': 'United States',
+    'CA': 'Canada',
+    'AU': 'Australia',
+    'JP': 'Japan',
+    'IN': 'India',
+    'SG': 'Singapore'
+  };
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header */}
@@ -88,19 +120,69 @@ export default function Settings() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="currency-region">Currency & Region</Label>
+              <Select onValueChange={manuallySetCurrency} value={availableCountries.find(code => 
+                currencyMap[code]?.code === currency.code
+              )}>
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoading ? "Detecting..." : `${countryNames[availableCountries.find(code => 
+                    currencyMap[code]?.code === currency.code
+                  ) || 'US'] || 'United States'} (${currency.symbol})`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCountries.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {countryNames[code]} ({currencyMap[code].symbol})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="grid-rate">Grid Rate</Label>
               <div className="flex gap-2">
-                <Input id="grid-rate" defaultValue="0.12" />
-                <span className="flex items-center text-sm text-muted-foreground">$/kWh</span>
+                <Input id="grid-rate" defaultValue={currency.rate.toString()} />
+                <span className="flex items-center text-sm text-muted-foreground">
+                  {isLoading ? '...' : `${currency.symbol}/kWh`}
+                </span>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="export-rate">Export Rate</Label>
               <div className="flex gap-2">
-                <Input id="export-rate" defaultValue="0.08" />
-                <span className="flex items-center text-sm text-muted-foreground">$/kWh</span>
+                <Input id="export-rate" defaultValue={(currency.rate * 0.67).toFixed(2)} />
+                <span className="flex items-center text-sm text-muted-foreground">
+                  {isLoading ? '...' : `${currency.symbol}/kWh`}
+                </span>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Currency Detection Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Currency Information</CardTitle>
+            <CardDescription>
+              Your currency is automatically detected based on your location
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Detected Currency:</span>
+              <Badge variant="secondary">
+                {currency.name} ({currency.symbol})
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Standard Rate:</span>
+              <span className="text-sm text-muted-foreground">
+                {formatRate(currency.rate)}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              You can manually change your currency and region in the dropdown above if the detection is incorrect.
+            </p>
           </CardContent>
         </Card>
 
