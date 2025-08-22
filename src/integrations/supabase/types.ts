@@ -14,13 +14,149 @@ export type Database = {
   }
   public: {
     Tables: {
-      Appliances: {
+      achievements: {
+        Row: {
+          category: string | null
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          max_progress: number
+          points: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_progress?: number
+          points?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_progress?: number
+          points?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_forecasts: {
+        Row: {
+          created_at: string
+          id: string
+          model: string | null
+          period_end: string
+          period_start: string
+          target: Database["public"]["Enums"]["forecast_target"]
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model?: string | null
+          period_end: string
+          period_start: string
+          target: Database["public"]["Enums"]["forecast_target"]
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model?: string | null
+          period_end?: string
+          period_start?: string
+          target?: Database["public"]["Enums"]["forecast_target"]
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      ai_recommendations: {
+        Row: {
+          created_at: string
+          description: string | null
+          expected_savings_currency: number | null
+          expected_savings_kwh: number | null
+          id: string
+          priority: Database["public"]["Enums"]["recommendation_priority"]
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          expected_savings_currency?: number | null
+          expected_savings_kwh?: number | null
+          id?: string
+          priority?: Database["public"]["Enums"]["recommendation_priority"]
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          expected_savings_currency?: number | null
+          expected_savings_kwh?: number | null
+          id?: string
+          priority?: Database["public"]["Enums"]["recommendation_priority"]
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      alerts: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          severity: Database["public"]["Enums"]["alert_severity"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      appliances: {
         Row: {
           created_at: string
           id: string
           name: string
-          power: number
-          state: string
+          power_rating_w: number | null
+          status: Database["public"]["Enums"]["appliance_status"]
+          total_kwh: number
           updated_at: string
           user_id: string
         }
@@ -28,124 +164,316 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          power: number
-          state: string
+          power_rating_w?: number | null
+          status?: Database["public"]["Enums"]["appliance_status"]
+          total_kwh?: number
           updated_at?: string
-          user_id?: string
+          user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
-          power?: number
-          state?: string
+          power_rating_w?: number | null
+          status?: Database["public"]["Enums"]["appliance_status"]
+          total_kwh?: number
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "Appliances_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "Users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      "Energy logs": {
+      demo_achievements: {
         Row: {
-          appliance_consumption: number
+          category: string | null
+          code: string
+          description: string | null
           id: string
-          net_grid_usage: number
-          solar_generated: number
-          timestamp: string
+          max_progress: number
+          points: number
+          progress: number
+          title: string
+          unlocked: boolean
+          unlocked_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          description?: string | null
+          id?: string
+          max_progress?: number
+          points?: number
+          progress?: number
+          title: string
+          unlocked?: boolean
+          unlocked_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          description?: string | null
+          id?: string
+          max_progress?: number
+          points?: number
+          progress?: number
+          title?: string
+          unlocked?: boolean
+          unlocked_at?: string | null
+        }
+        Relationships: []
+      }
+      demo_alerts: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          severity: Database["public"]["Enums"]["alert_severity"]
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          title?: string
+        }
+        Relationships: []
+      }
+      demo_appliances: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          power_rating_w: number | null
+          status: Database["public"]["Enums"]["appliance_status"]
+          total_kwh: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          power_rating_w?: number | null
+          status?: Database["public"]["Enums"]["appliance_status"]
+          total_kwh?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          power_rating_w?: number | null
+          status?: Database["public"]["Enums"]["appliance_status"]
+          total_kwh?: number
+        }
+        Relationships: []
+      }
+      demo_energy_logs: {
+        Row: {
+          appliance_name: string | null
+          consumption_kwh: number
+          id: string
+          logged_at: string
+        }
+        Insert: {
+          appliance_name?: string | null
+          consumption_kwh: number
+          id?: string
+          logged_at?: string
+        }
+        Update: {
+          appliance_name?: string | null
+          consumption_kwh?: number
+          id?: string
+          logged_at?: string
+        }
+        Relationships: []
+      }
+      demo_solar_data: {
+        Row: {
+          generation_kwh: number
+          id: string
+          irradiance_wm2: number | null
+          logged_at: string
+        }
+        Insert: {
+          generation_kwh: number
+          id?: string
+          irradiance_wm2?: number | null
+          logged_at?: string
+        }
+        Update: {
+          generation_kwh?: number
+          id?: string
+          irradiance_wm2?: number | null
+          logged_at?: string
+        }
+        Relationships: []
+      }
+      demo_user_points: {
+        Row: {
+          id: string
+          level: number
+          points: number
+          updated_at: string
+          xp: number
+        }
+        Insert: {
+          id?: string
+          level?: number
+          points?: number
+          updated_at?: string
+          xp?: number
+        }
+        Update: {
+          id?: string
+          level?: number
+          points?: number
+          updated_at?: string
+          xp?: number
+        }
+        Relationships: []
+      }
+      energy_logs: {
+        Row: {
+          appliance_id: string | null
+          consumption_kwh: number
+          created_at: string
+          id: string
+          logged_at: string
+          updated_at: string
           user_id: string
         }
         Insert: {
-          appliance_consumption: number
+          appliance_id?: string | null
+          consumption_kwh: number
+          created_at?: string
           id?: string
-          net_grid_usage: number
-          solar_generated: number
-          timestamp?: string
-          user_id?: string
+          logged_at?: string
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          appliance_consumption?: number
+          appliance_id?: string | null
+          consumption_kwh?: number
+          created_at?: string
           id?: string
-          net_grid_usage?: number
-          solar_generated?: number
-          timestamp?: string
+          logged_at?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "Energy logs_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "energy_logs_appliance_id_fkey"
+            columns: ["appliance_id"]
             isOneToOne: false
-            referencedRelation: "Users"
+            referencedRelation: "appliances"
             referencedColumns: ["id"]
           },
         ]
       }
-      Insights: {
-        Row: {
-          id: string
-          insight_text: string | null
-          timestamp: string
-          user_id: string | null
-        }
-        Insert: {
-          id?: string
-          insight_text?: string | null
-          timestamp?: string
-          user_id?: string | null
-        }
-        Update: {
-          id?: string
-          insight_text?: string | null
-          timestamp?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "Insights_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "Users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      Users: {
+      solar_data: {
         Row: {
           created_at: string
-          email: string | null
-          energy_preferences: Json | null
-          goals: Json | null
-          home_details: Json | null
+          generation_kwh: number
           id: string
-          password_hash: string | null
+          irradiance_wm2: number | null
+          logged_at: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           created_at?: string
-          email?: string | null
-          energy_preferences?: Json | null
-          goals?: Json | null
-          home_details?: Json | null
+          generation_kwh: number
           id?: string
-          password_hash?: string | null
+          irradiance_wm2?: number | null
+          logged_at?: string
           updated_at?: string
+          user_id: string
         }
         Update: {
           created_at?: string
-          email?: string | null
-          energy_preferences?: Json | null
-          goals?: Json | null
-          home_details?: Json | null
+          generation_kwh?: number
           id?: string
-          password_hash?: string | null
+          irradiance_wm2?: number | null
+          logged_at?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          created_at: string
+          id: string
+          progress: number
+          unlocked: boolean
+          unlocked_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          created_at?: string
+          id?: string
+          progress?: number
+          unlocked?: boolean
+          unlocked_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          created_at?: string
+          id?: string
+          progress?: number
+          unlocked?: boolean
+          unlocked_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_points: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          points: number
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: number
+          points?: number
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          points?: number
+          updated_at?: string
+          user_id?: string
+          xp?: number
         }
         Relationships: []
       }
@@ -157,7 +485,10 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      alert_severity: "info" | "warning" | "critical"
+      appliance_status: "on" | "off"
+      forecast_target: "consumption" | "generation" | "savings"
+      recommendation_priority: "low" | "medium" | "high"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -284,6 +615,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      alert_severity: ["info", "warning", "critical"],
+      appliance_status: ["on", "off"],
+      forecast_target: ["consumption", "generation", "savings"],
+      recommendation_priority: ["low", "medium", "high"],
+    },
   },
 } as const
