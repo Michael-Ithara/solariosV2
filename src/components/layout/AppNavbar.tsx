@@ -1,10 +1,18 @@
-import { Moon, Sun, Bell, User, Menu } from "lucide-react";
+import { Moon, Sun, Bell, User, Menu, LogOut, Settings, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/auth/AuthModal";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 export function AppNavbar() {
   const [isDark, setIsDark] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { user, role, signOut } = useAuth();
+  const navigate = useNavigate();
 
   // Initialize dark mode from localStorage
   useEffect(() => {
@@ -23,6 +31,14 @@ export function AppNavbar() {
     localStorage.setItem('theme', newTheme ? 'dark' : 'light');
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
   return (
     <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="flex h-full items-center justify-between px-6">
@@ -59,12 +75,63 @@ export function AppNavbar() {
           </Button>
 
           {/* User profile */}
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <User className="h-4 w-4" />
-            <span className="sr-only">User menu</span>
-          </Button>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 relative">
+                  <User className="h-4 w-4" />
+                  {role === 'admin' && (
+                    <div className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full flex items-center justify-center">
+                      <Shield className="h-2 w-2 text-warning-foreground" />
+                    </div>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="flex items-center gap-2">
+                  <div>
+                    <p className="text-sm font-medium">{user.email}</p>
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {role}
+                    </Badge>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                {role === 'admin' && (
+                  <DropdownMenuItem onClick={() => navigate('/admin')}>
+                    <Shield className="mr-2 h-4 w-4" />
+                    Admin Panel
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowAuthModal(true)}
+              className="h-8 px-3"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Sign In
+            </Button>
+          )}
         </div>
       </div>
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
     </header>
   );
 }

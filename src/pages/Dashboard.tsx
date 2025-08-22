@@ -16,72 +16,129 @@ import { Alert as AlertComponent, AlertDescription } from "@/components/ui/alert
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/hooks/useCurrency";
 import { GamificationPanel } from "@/components/gamification/GamificationPanel";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Mock data
-// Mock data
-const baseDashboardData = {
-  currentPower: 4.2,
-  solarProduction: 6.8,
-  gridUsage: 0,
-  batteryLevel: 85,
-  dailyConsumption: 24.6,
-  dailySolar: 42.3,
-  monthlySavings: 156,
-  trends: {
-    power: 12,
-    solar: 8,
-    grid: -15,
-    battery: 5
-  }
-};
-
-const alerts = [
-  {
-    id: 1,
-    type: "warning",
-    title: "High Energy Usage Detected",
-    description: "Air conditioner is consuming 40% more than usual",
-    time: "2 mins ago"
-  },
-  {
-    id: 2,
-    type: "info", 
-    title: "Solar Production Peak",
-    description: "Your solar panels are producing at 95% capacity",
-    time: "15 mins ago"
-  }
-];
 
 export default function Dashboard() {
   const { currency, formatCurrency, convertFromUSD, isLoading: currencyLoading } = useCurrency();
+  const { role } = useAuth();
+  const { 
+    appliances, 
+    energyLogs, 
+    solarData, 
+    alerts, 
+    userPoints, 
+    loading, 
+    error, 
+    useDemo 
+  } = useSupabaseData();
   
-  const dashboardData = {
-    ...baseDashboardData,
-    monthlySavings: convertFromUSD(baseDashboardData.monthlySavings)
+  // Calculate dashboard metrics from real data
+  const calculateMetrics = () => {
+    const currentPower = appliances
+      .filter(a => a.status === 'on')
+      .reduce((sum, a) => sum + (a.power_rating_w || 0), 0) / 1000; // Convert to kW
+    
+    const recentSolar = solarData.slice(0, 1)[0];
+    const solarProduction = recentSolar ? recentSolar.generation_kwh : 0;
+    
+    const dailyConsumption = energyLogs
+      .filter(log => {
+        const logDate = new Date(log.logged_at);
+        const today = new Date();
+        return logDate.toDateString() === today.toDateString();
+      })
+      .reduce((sum, log) => sum + log.consumption_kwh, 0);
+    
+    const dailySolar = solarData
+      .filter(data => {
+        const dataDate = new Date(data.logged_at);
+        const today = new Date();
+        return dataDate.toDateString() === today.toDateString();
+      })
+      .reduce((sum, data) => sum + data.generation_kwh, 0);
+    
+    return {
+      currentPower,
+      solarProduction,
+      gridUsage: Math.max(0, currentPower - solarProduction),
+      batteryLevel: 85, // Mock for now
+      dailyConsumption,
+      dailySolar,
+      monthlySavings: convertFromUSD(156), // Mock for now
+      trends: {
+        power: 12,
+        solar: 8,
+        grid: -15,
+        battery: 5
+      }
+    };
   };
+  
+  const dashboardData = calculateMetrics();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Energy Dashboard</h1>
+        <h1 className="text-3xl font-bold">
+          Energy Dashboard
+          {useDemo && (
+            <Badge variant="outline" className="ml-3 text-xs">
+              Demo Mode
+            </Badge>
+          )}
+        </h1>
         <p className="text-muted-foreground">
           Monitor your energy consumption and production in real-time
         </p>
       </div>
 
+      {/* Demo Mode Notice */}
+      {useDemo && (
+        <Alert className="border-primary/20 bg-primary/5">
+          <AlertTriangle className="h-4 w-4 text-primary" />
+          <AlertDescription>
+            You're viewing demo data. Sign in to connect your real energy monitoring devices and track your actual usage.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Alerts */}
       {alerts.length > 0 && (
         <div className="space-y-3">
           {alerts.map((alert) => (
-            <AlertComponent key={alert.id} className="border-warning/20 bg-warning/5">
-              <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertComponent 
+              key={alert.id} 
+              className={`${
+                alert.severity === 'critical' ? 'border-danger/20 bg-danger/5' :
+                alert.severity === 'warning' ? 'border-warning/20 bg-warning/5' :
+                'border-primary/20 bg-primary/5'
+              }`}
+            >
+              <AlertTriangle className={`h-4 w-4 ${
+                alert.severity === 'critical' ? 'text-danger' :
+                alert.severity === 'warning' ? 'text-warning' :
+                'text-primary'
+              }`} />
               <AlertDescription>
                 <div className="flex items-center justify-between">
                   <div>
                     <strong>{alert.title}</strong>
-                    <div className="text-sm text-muted-foreground">{alert.description}</div>
+                    <div className="text-sm text-muted-foreground">{alert.message}</div>
                   </div>
-                  <span className="text-xs text-muted-foreground">{alert.time}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(alert.created_at).toLocaleTimeString()}
+                  </span>
                 </div>
               </AlertDescription>
             </AlertComponent>

@@ -13,107 +13,155 @@ import { ApplianceCard } from "@/components/ui/appliance-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
+import { useAuth } from "@/contexts/AuthContext";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
+import { useState } from "react";
 
-// Mock appliances data
-const appliances = [
-  {
-    id: 1,
-    name: "Air Conditioner",
-    icon: <Snowflake className="h-5 w-5" />,
-    isOnline: true,
-    currentUsage: 3.2,
-    unit: "kW",
-    status: "high" as const,
-    dailyUsage: 18.5,
-    trend: 15,
-    lastUpdate: "2 mins ago"
-  },
-  {
-    id: 2,
-    name: "Smart TV",
-    icon: <Tv className="h-5 w-5" />,
-    isOnline: true,
-    currentUsage: 0.15,
-    unit: "kW",
-    status: "normal" as const,
-    dailyUsage: 2.4,
-    trend: -5,
-    lastUpdate: "1 min ago"
-  },
-  {
-    id: 3,
-    name: "LED Lights",
-    icon: <Lightbulb className="h-5 w-5" />,
-    isOnline: true,
-    currentUsage: 0.08,
-    unit: "kW",
-    status: "normal" as const,
-    dailyUsage: 1.2,
-    trend: -8,
-    lastUpdate: "30 secs ago"
-  },
-  {
-    id: 4,
-    name: "Microwave",
-    icon: <Microwave className="h-5 w-5" />,
-    isOnline: false,
-    currentUsage: 0,
-    unit: "kW",
-    status: "normal" as const,
-    dailyUsage: 0.8,
-    trend: 0,
-    lastUpdate: "2 hours ago"
-  },
-  {
-    id: 5,
-    name: "Ceiling Fan",
-    icon: <Wind className="h-5 w-5" />,
-    isOnline: true,
-    currentUsage: 0.05,
-    unit: "kW",
-    status: "normal" as const,
-    dailyUsage: 1.1,
-    trend: -12,
-    lastUpdate: "45 secs ago"
-  },
-  {
-    id: 6,
-    name: "Washing Machine",
-    icon: <WashingMachine className="h-5 w-5" />,
-    isOnline: true,
-    currentUsage: 2.1,
-    unit: "kW",
-    status: "anomaly" as const,
-    dailyUsage: 4.2,
-    trend: 25,
-    lastUpdate: "5 mins ago"
-  }
-];
+// Icon mapping for appliances
+const getApplianceIcon = (name: string) => {
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes('air') || lowerName.includes('hvac')) return <Snowflake className="h-5 w-5" />;
+  if (lowerName.includes('tv') || lowerName.includes('television')) return <Tv className="h-5 w-5" />;
+  if (lowerName.includes('light') || lowerName.includes('lamp')) return <Lightbulb className="h-5 w-5" />;
+  if (lowerName.includes('microwave') || lowerName.includes('oven')) return <Microwave className="h-5 w-5" />;
+  if (lowerName.includes('fan') || lowerName.includes('ventilation')) return <Wind className="h-5 w-5" />;
+  if (lowerName.includes('wash') || lowerName.includes('laundry')) return <WashingMachine className="h-5 w-5" />;
+  if (lowerName.includes('computer') || lowerName.includes('pc')) return <Monitor className="h-5 w-5" />;
+  return <Zap className="h-5 w-5" />;
+};
 
 export default function Appliances() {
-  const handleToggleAppliance = (id: number) => {
-    console.log(`Toggle appliance ${id}`);
+  const { role } = useAuth();
+  const { 
+    appliances, 
+    loading, 
+    error, 
+    useDemo, 
+    toggleAppliance, 
+    addAppliance 
+  } = useSupabaseData();
+  
+  const [newApplianceName, setNewApplianceName] = useState('');
+  const [newAppliancePower, setNewAppliancePower] = useState('');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const handleToggleAppliance = (id: string) => {
+    toggleAppliance(id);
   };
 
-  const handleApplianceSettings = (id: number) => {
+  const handleApplianceSettings = (id: string) => {
     console.log(`Settings for appliance ${id}`);
   };
+
+  const handleAddAppliance = async () => {
+    if (!newApplianceName.trim()) return;
+    
+    await addAppliance(newApplianceName, parseInt(newAppliancePower) || 0);
+    setNewApplianceName('');
+    setNewAppliancePower('');
+    setIsAddDialogOpen(false);
+  };
+
+  // Transform appliance data for display
+  const transformedAppliances = appliances.map(appliance => ({
+    id: appliance.id,
+    name: appliance.name,
+    icon: getApplianceIcon(appliance.name),
+    isOnline: appliance.status === 'on',
+    currentUsage: appliance.status === 'on' ? (appliance.power_rating_w || 0) / 1000 : 0,
+    unit: "kW",
+    status: appliance.status === 'on' && (appliance.power_rating_w || 0) > 2000 ? "high" as const : "normal" as const,
+    dailyUsage: appliance.total_kwh || 0,
+    trend: Math.floor(Math.random() * 20) - 10, // Mock trend for now
+    lastUpdate: new Date(appliance.created_at).toLocaleString()
+  }));
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Appliances</h1>
+          <h1 className="text-3xl font-bold">
+            Appliances
+            {useDemo && (
+              <Badge variant="outline" className="ml-3 text-xs">
+                Demo Mode
+              </Badge>
+            )}
+          </h1>
           <p className="text-muted-foreground">
             Monitor and control your smart home devices
           </p>
         </div>
-        <Button className="bg-gradient-energy text-primary-foreground shadow-energy">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Appliance
-        </Button>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-gradient-energy text-primary-foreground shadow-energy">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Appliance
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Appliance</DialogTitle>
+              <DialogDescription>
+                Add a new appliance to monitor its energy consumption.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="appliance-name">Appliance Name</Label>
+                <Input
+                  id="appliance-name"
+                  placeholder="e.g., Living Room TV"
+                  value={newApplianceName}
+                  onChange={(e) => setNewApplianceName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="power-rating">Power Rating (Watts)</Label>
+                <Input
+                  id="power-rating"
+                  type="number"
+                  placeholder="e.g., 150"
+                  value={newAppliancePower}
+                  onChange={(e) => setNewAppliancePower(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddAppliance}>
+                Add Appliance
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
+
+      {/* Demo Mode Notice */}
+      {useDemo && (
+        <Alert className="border-primary/20 bg-primary/5">
+          <AlertTriangle className="h-4 w-4 text-primary" />
+          <AlertDescription>
+            You're viewing demo appliances. Sign in to add and control your real smart home devices.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Filters and Search */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -153,7 +201,7 @@ export default function Appliances() {
 
       {/* Appliances Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {appliances.map((appliance) => (
+        {transformedAppliances.map((appliance) => (
           <ApplianceCard
             key={appliance.id}
             name={appliance.name}
@@ -175,25 +223,25 @@ export default function Appliances() {
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-lg border bg-card p-4">
           <div className="text-2xl font-bold text-primary">
-            {appliances.filter(a => a.isOnline).length}
+            {transformedAppliances.filter(a => a.isOnline).length}
           </div>
           <p className="text-sm text-muted-foreground">Online Devices</p>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="text-2xl font-bold text-energy-consumption">
-            {appliances.reduce((sum, a) => sum + a.currentUsage, 0).toFixed(1)} kW
+            {transformedAppliances.reduce((sum, a) => sum + a.currentUsage, 0).toFixed(1)} kW
           </div>
           <p className="text-sm text-muted-foreground">Total Current Usage</p>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="text-2xl font-bold text-warning">
-            {appliances.filter(a => a.status === "anomaly" || a.status === "high").length}
+            {transformedAppliances.filter(a => a.status === "anomaly" || a.status === "high").length}
           </div>
           <p className="text-sm text-muted-foreground">Devices Need Attention</p>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="text-2xl font-bold text-success">
-            {appliances.reduce((sum, a) => sum + a.dailyUsage, 0).toFixed(1)} kWh
+            {transformedAppliances.reduce((sum, a) => sum + a.dailyUsage, 0).toFixed(1)} kWh
           </div>
           <p className="text-sm text-muted-foreground">Daily Total Usage</p>
         </div>

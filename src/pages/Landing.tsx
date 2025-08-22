@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/auth/AuthModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +70,8 @@ const stats = [
 export default function Landing() {
   const [isVisible, setIsVisible] = useState(false);
   const [currentFeature, setCurrentFeature] = useState(0);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     setIsVisible(true);
@@ -97,12 +101,23 @@ export default function Landing() {
               Solarios
             </h1>
           </div>
-          <Link to="/dashboard">
-            <Button variant="outline" className="border-primary/20 hover:bg-primary/10">
-              Dashboard
+          {user ? (
+            <Link to="/dashboard">
+              <Button variant="outline" className="border-primary/20 hover:bg-primary/10">
+                Dashboard
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          ) : (
+            <Button 
+              variant="outline" 
+              className="border-primary/20 hover:bg-primary/10"
+              onClick={() => setShowAuthModal(true)}
+            >
+              Sign In
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
-          </Link>
+          )}
         </div>
       </nav>
 
@@ -126,12 +141,23 @@ export default function Landing() {
             </p>
             
             <div className="flex gap-4 justify-center mb-12">
-              <Link to="/dashboard">
-                <Button size="lg" className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl">
+              {user ? (
+                <Link to="/dashboard">
+                  <Button size="lg" className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl">
+                    <Play className="w-5 h-5 mr-2" />
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Button 
+                  size="lg" 
+                  className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl"
+                  onClick={() => setShowAuthModal(true)}
+                >
                   <Play className="w-5 h-5 mr-2" />
                   Start Monitoring
                 </Button>
-              </Link>
+              )}
               <Button variant="outline" size="lg" className="px-8 py-6 text-lg border-primary/30 hover:bg-primary/10">
                 Watch Demo
               </Button>
@@ -216,12 +242,24 @@ export default function Landing() {
           </div>
 
           <div className="text-center mt-12">
-            <Link to="/dashboard">
-              <Button size="lg" variant="outline" className="px-8 py-6 text-lg border-success/30 hover:bg-success/10">
+            {user ? (
+              <Link to="/dashboard">
+                <Button size="lg" variant="outline" className="px-8 py-6 text-lg border-success/30 hover:bg-success/10">
+                  <Trophy className="w-5 h-5 mr-2" />
+                  View All Achievements
+                </Button>
+              </Link>
+            ) : (
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="px-8 py-6 text-lg border-success/30 hover:bg-success/10"
+                onClick={() => setShowAuthModal(true)}
+              >
                 <Trophy className="w-5 h-5 mr-2" />
                 View All Achievements
               </Button>
-            </Link>
+            )}
           </div>
         </div>
       </section>
@@ -237,12 +275,23 @@ export default function Landing() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/dashboard">
-              <Button size="lg" className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl">
+            {user ? (
+              <Link to="/dashboard">
+                <Button size="lg" className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl">
+                  <Zap className="w-5 h-5 mr-2" />
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Button 
+                size="lg" 
+                className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl"
+                onClick={() => setShowAuthModal(true)}
+              >
                 <Zap className="w-5 h-5 mr-2" />
                 Get Started Now
               </Button>
-            </Link>
+            )}
             <Button variant="outline" size="lg" className="px-8 py-6 text-lg border-primary/30 hover:bg-primary/10">
               <CheckCircle className="w-5 h-5 mr-2" />
               Learn More
@@ -270,6 +319,11 @@ export default function Landing() {
           </p>
         </div>
       </footer>
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
     </div>
   );
 }

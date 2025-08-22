@@ -6,9 +6,11 @@ import {
   Settings, 
   Sun, 
   Activity,
-  Lightbulb
+  Lightbulb,
+  Shield
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   Sidebar,
@@ -37,6 +39,7 @@ const energyItems = [
 ];
 
 export function AppSidebar() {
+  const { role, hasPermission } = useAuth();
   const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -91,6 +94,27 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Admin Section */}
+        {hasPermission('admin') && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
+              Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/admin" className={getNavCls}>
+                      <Shield className="w-5 h-5 shrink-0" />
+                      {!collapsed && <span>Admin Panel</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Energy Section */}
         <SidebarGroup>
