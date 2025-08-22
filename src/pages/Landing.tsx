@@ -315,7 +315,7 @@ export default function Landing() {
             <span className="text-lg font-bold">Solarios</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2024 Solarios. Powering the future of energy management.
+            © 2025 Solarios. Powering the future of energy management.
           </p>
         </div>
       </footer>
