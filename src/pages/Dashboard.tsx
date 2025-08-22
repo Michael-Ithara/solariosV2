@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert as AlertComponent, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/hooks/useCurrency";
+import { GamificationPanel } from "@/components/gamification/GamificationPanel";
 
 // Mock data
 // Mock data
@@ -200,6 +201,12 @@ export default function Dashboard() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Gamification Section */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Achievements & Progress</h2>
+        <GamificationPanel />
       </div>
     </div>
   );
