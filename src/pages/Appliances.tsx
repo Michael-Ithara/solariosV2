@@ -7,7 +7,8 @@ import {
   WashingMachine,
   Monitor,
   Plus,
-  Search
+  Search,
+  Zap
 } from "lucide-react";
 import { ApplianceCard } from "@/components/ui/appliance-card";
 import { Button } from "@/components/ui/button";
@@ -235,7 +236,7 @@ export default function Appliances() {
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="text-2xl font-bold text-warning">
-            {transformedAppliances.filter(a => a.status === "anomaly" || a.status === "high").length}
+            {transformedAppliances.filter(a => a.status === "high" || a.status === "normal").length}
           </div>
           <p className="text-sm text-muted-foreground">Devices Need Attention</p>
         </div>

@@ -105,12 +105,12 @@ export default function Dashboard() {
 
       {/* Demo Mode Notice */}
       {useDemo && (
-        <Alert className="border-primary/20 bg-primary/5">
+        <AlertComponent className="border-primary/20 bg-primary/5">
           <AlertTriangle className="h-4 w-4 text-primary" />
           <AlertDescription>
             You're viewing demo data. Sign in to connect your real energy monitoring devices and track your actual usage.
           </AlertDescription>
-        </Alert>
+        </AlertComponent>
       )}
 
       {/* Alerts */}
