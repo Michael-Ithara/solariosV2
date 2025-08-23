@@ -21,27 +21,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const role = authService.getUserRole(user);
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      const currentUser = await authService.getCurrentUser();
-      setUser(currentUser);
-      setLoading(false);
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          const currentUser = await authService.getCurrentUser();
-          setUser(currentUser);
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
+    // Listen for auth changes FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const adminEmails = ['admin@solarios.com', 'admin@example.com'];
+        const role = adminEmails.includes(session.user.email || '') ? 'admin' : 'user';
+        setUser({ ...session.user, role });
+      } else {
+        setUser(null);
       }
-    );
+      setLoading(false);
+    });
+
+    // THEN get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const adminEmails = ['admin@solarios.com', 'admin@example.com'];
+        const role = adminEmails.includes(session.user.email || '') ? 'admin' : 'user';
+        setUser({ ...session.user, role });
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, []);

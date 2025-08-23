@@ -10,9 +10,13 @@ export interface AuthUser extends User {
 export const authService = {
   // Sign up new user
   async signUp(email: string, password: string) {
+    const redirectUrl = `${window.location.origin}/`;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
     });
     
     if (error) throw error;
