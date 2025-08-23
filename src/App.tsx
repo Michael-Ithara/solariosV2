@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppSidebar } from "@/components/layout/AppSidebar";
@@ -18,46 +17,6 @@ import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 
-const AppContent = () => {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-  
-  return (
-    <div className="min-h-screen flex w-full bg-background">
-      <AppSidebar />
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${collapsed ? 'ml-6' : 'ml-8'}`}>
-        <AppNavbar />
-        <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/appliances" element={<Appliances />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route 
-              path="/settings" 
-              element={
-                <ProtectedRoute requiredRole="user">
-                  <Settings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <Admin />
-                </ProtectedRoute>
-              } 
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
-  );
-};
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -65,9 +24,38 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <SidebarProvider>
-            <AppContent />
-          </SidebarProvider>
+          <div className="min-h-screen w-full bg-background">
+            <AppSidebar />
+            <div className="w-full">
+              <AppNavbar />
+              <main className="w-full">
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/appliances" element={<Appliances />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route 
+                    path="/settings" 
+                    element={
+                      <ProtectedRoute requiredRole="user">
+                        <Settings />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin" 
+                    element={
+                      <ProtectedRoute requiredRole="admin">
+                        <Admin />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+            </div>
+          </div>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

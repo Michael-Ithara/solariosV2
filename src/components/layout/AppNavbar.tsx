@@ -1,18 +1,18 @@
-import { Moon, Sun, Bell, User, Menu, LogOut, Settings, Shield } from "lucide-react";
+import { Moon, Sun, Bell, User, LogOut, Settings, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export function AppNavbar() {
   const [isDark, setIsDark] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Initialize dark mode from localStorage
   useEffect(() => {
@@ -39,14 +39,20 @@ export function AppNavbar() {
       console.error('Error signing out:', error);
     }
   };
+  
+  // Don't show navbar on landing page
+  if (location.pathname === "/") {
+    return null;
+  }
+
   return (
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-      <div className="flex h-full items-center justify-between px-6">
-        {/* Left side - Sidebar trigger */}
+    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+      <div className="flex h-full items-center justify-between px-6 ml-20">
+        {/* Left side - App title */}
         <div className="flex items-center gap-4">
-          <SidebarTrigger className="h-8 w-8" />
-          <div className="hidden sm:block">
-            <h2 className="text-sm text-muted-foreground">Energy Monitoring System</h2>
+          <div>
+            <h2 className="text-lg font-semibold">Solarios</h2>
+            <p className="text-xs text-muted-foreground">Energy Management System</p>
           </div>
         </div>
 
