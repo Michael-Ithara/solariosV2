@@ -14,6 +14,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
@@ -40,16 +41,19 @@ interface DockItemProps {
 
 const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const isMobile = useIsMobile();
 
   return (
-    <div className="relative group">
+    <div className="relative group flex-shrink-0">
       <NavLink
         to={url}
         onClick={onClick}
         className={cn(
           "relative flex items-center justify-center transition-all duration-300 ease-out transform",
-          "w-12 h-12 rounded-2xl backdrop-blur-md border border-white/20",
-          "hover:scale-150 hover:shadow-2xl hover:shadow-black/30",
+          isMobile 
+            ? "w-10 h-10 rounded-xl" 
+            : "w-12 h-12 rounded-2xl hover:scale-150 hover:shadow-2xl hover:shadow-black/30",
+          "backdrop-blur-md border border-white/20",
           isActive 
             ? "bg-white/90 shadow-lg scale-110" 
             : "bg-white/20 hover:bg-white/30"
@@ -58,13 +62,15 @@ const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItem
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className={cn(
-          "w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-300",
+          "rounded-lg flex items-center justify-center transition-all duration-300",
+          isMobile ? "w-5 h-5" : "w-6 h-6",
           isActive ? "bg-gradient-to-br" : "bg-transparent",
           isActive && color
         )}>
           <Icon 
             className={cn(
-              "w-5 h-5 transition-all duration-300",
+              "transition-all duration-300",
+              isMobile ? "w-4 h-4" : "w-5 h-5",
               isActive ? "text-white" : "text-gray-700 group-hover:text-gray-900"
             )} 
           />
@@ -156,39 +162,59 @@ export function AppSidebar() {
           : "left-6 top-1/2 -translate-y-1/2"
       )}>
         <div className={cn(
-          "flex items-center gap-2 p-3 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl",
-          isMobile ? "flex-row" : "flex-col"
+          "flex items-center rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl",
+          isMobile 
+            ? "flex-row gap-1 p-2 max-w-[90vw]" 
+            : "flex-col gap-2 p-3"
         )}>
           {/* Logo */}
-          <div className={cn("p-2", isMobile ? "mr-2" : "mb-2")}>
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg">
-              <Zap className="w-6 h-6 text-white" />
+          <div className={cn(isMobile ? "p-1 mr-1" : "p-2 mb-2", "flex-shrink-0")}>
+            <div className={cn(
+              "bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg",
+              isMobile ? "w-8 h-8" : "w-10 h-10"
+            )}>
+              <Zap className={cn("text-white", isMobile ? "w-4 h-4" : "w-6 h-6")} />
             </div>
           </div>
 
           {/* Separator */}
           <div className={cn(
-            "bg-white/20",
-            isMobile ? "w-px h-8 mr-2" : "w-8 h-px mb-2"
+            "bg-white/20 flex-shrink-0",
+            isMobile ? "w-px h-6 mr-1" : "w-8 h-px mb-2"
           )} />
 
-          {/* Navigation Items */}
-          <div className={cn(
-            "flex gap-2",
-            isMobile ? "flex-row" : "flex-col"
-          )}>
-            {allItems.map((item) => (
-              <DockItem
-                key={item.url}
-                title={item.title}
-                url={item.url}
-                icon={item.icon}
-                color={item.color}
-                isActive={isActive(item.url)}
-                onClick={() => isMobile && setIsVisible(false)}
-              />
-            ))}
-          </div>
+          {/* Navigation Items - Scrollable on mobile */}
+          {isMobile ? (
+            <ScrollArea className="w-full">
+              <div className="flex gap-1 pb-1">
+                {allItems.map((item) => (
+                  <DockItem
+                    key={item.url}
+                    title={item.title}
+                    url={item.url}
+                    icon={item.icon}
+                    color={item.color}
+                    isActive={isActive(item.url)}
+                    onClick={() => isMobile && setIsVisible(false)}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {allItems.map((item) => (
+                <DockItem
+                  key={item.url}
+                  title={item.title}
+                  url={item.url}
+                  icon={item.icon}
+                  color={item.color}
+                  isActive={isActive(item.url)}
+                  onClick={() => isMobile && setIsVisible(false)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </>
