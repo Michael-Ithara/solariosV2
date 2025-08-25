@@ -33,14 +33,14 @@ const App = () => (
                 <main className="w-full">
                   <Routes>
                     <Route path="/" element={<Landing />} />
-                    <Route path="/dashboard" element={<div className="md:ml-20"><Dashboard /></div>} />
-                    <Route path="/appliances" element={<div className="md:ml-20"><Appliances /></div>} />
-                    <Route path="/analytics" element={<div className="md:ml-20"><Analytics /></div>} />
+                    <Route path="/dashboard" element={<div className="md:ml-24"><Dashboard /></div>} />
+                    <Route path="/appliances" element={<div className="md:ml-24"><Appliances /></div>} />
+                    <Route path="/analytics" element={<div className="md:ml-24"><Analytics /></div>} />
                     <Route 
                       path="/settings" 
                       element={
                         <ProtectedRoute requiredRole="user">
-                          <div className="md:ml-20"><Settings /></div>
+                          <div className="md:ml-24"><Settings /></div>
                         </ProtectedRoute>
                       } 
                     />
@@ -48,12 +48,12 @@ const App = () => (
                       path="/admin" 
                       element={
                         <ProtectedRoute requiredRole="admin">
-                          <div className="md:ml-20"><Admin /></div>
+                          <div className="md:ml-24"><Admin /></div>
                         </ProtectedRoute>
                       } 
                     />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<div className="md:ml-20"><NotFound /></div>} />
+                    <Route path="*" element={<div className="md:ml-24"><NotFound /></div>} />
                   </Routes>
                 </main>
               </div>

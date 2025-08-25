@@ -161,7 +161,7 @@ export function AppSidebar() {
                 ? "translate-y-0 opacity-100" 
                 : "translate-y-full opacity-0 pointer-events-none"
             )
-          : "left-10 top-1/2 -translate-y-1/2" // Centered in the 80px margin space
+          : "left-6 top-1/2 -translate-y-1/2"
       )}>
         <div className={cn(
           "flex items-center rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl",
