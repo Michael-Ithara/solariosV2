@@ -12,7 +12,6 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home, color: "from-blue-500 to-blue-600" },
@@ -33,7 +32,7 @@ interface DockItemProps {
   icon: any;
   color: string;
   isActive: boolean;
-  onClick: () => void;
+  onClick?: () => void;
 }
 
 const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItemProps) => {
@@ -85,15 +84,9 @@ const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItem
   );
 };
 
-interface AppSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
+export function AppSidebar() {
   const { hasPermission } = useAuth();
   const location = useLocation();
-  const isMobile = useIsMobile();
   const currentPath = location.pathname;
 
   const isActive = (path: string) => currentPath === path;
@@ -102,12 +95,6 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   if (currentPath === "/") {
     return null;
   }
-
-  const handleItemClick = () => {
-    if (isMobile) {
-      onClose();
-    }
-  };
 
   const allItems = [
     ...navigationItems,
@@ -120,78 +107,31 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
     ...energyItems,
   ];
 
-  // Mobile overlay
-  if (isMobile && isOpen) {
-    return (
-      <>
-        {/* Backdrop */}
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={onClose}
-        />
-        
-        {/* Mobile Dock */}
-        <div className="fixed left-6 top-1/2 -translate-y-1/2 z-50 md:hidden">
-          <div className="flex flex-col items-center gap-2 p-3 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
-            {/* Logo */}
-            <div className="mb-2 p-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg">
-                <Zap className="w-6 h-6 text-white" />
-              </div>
-            </div>
-
-            {/* Separator */}
-            <div className="w-8 h-px bg-white/20 mb-2" />
-
-            {/* Navigation Items */}
-            {allItems.map((item) => (
-              <DockItem
-                key={item.url}
-                title={item.title}
-                url={item.url}
-                icon={item.icon}
-                color={item.color}
-                isActive={isActive(item.url)}
-                onClick={handleItemClick}
-              />
-            ))}
+  return (
+    <div className="fixed left-6 top-1/2 -translate-y-1/2 z-50">
+      <div className="flex flex-col items-center gap-2 p-3 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+        {/* Logo */}
+        <div className="mb-2 p-2">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg">
+            <Zap className="w-6 h-6 text-white" />
           </div>
         </div>
-      </>
-    );
-  }
 
-  // Desktop dock (always visible)
-  if (!isMobile) {
-    return (
-      <div className="fixed left-6 top-1/2 -translate-y-1/2 z-50">
-        <div className="flex flex-col items-center gap-2 p-3 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
-          {/* Logo */}
-          <div className="mb-2 p-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg">
-              <Zap className="w-6 h-6 text-white" />
-            </div>
-          </div>
+        {/* Separator */}
+        <div className="w-8 h-px bg-white/20 mb-2" />
 
-          {/* Separator */}
-          <div className="w-8 h-px bg-white/20 mb-2" />
-
-          {/* Navigation Items */}
-          {allItems.map((item) => (
-            <DockItem
-              key={item.url}
-              title={item.title}
-              url={item.url}
-              icon={item.icon}
-              color={item.color}
-              isActive={isActive(item.url)}
-              onClick={handleItemClick}
-            />
-          ))}
-        </div>
+        {/* Navigation Items */}
+        {allItems.map((item) => (
+          <DockItem
+            key={item.url}
+            title={item.title}
+            url={item.url}
+            icon={item.icon}
+            color={item.color}
+            isActive={isActive(item.url)}
+          />
+        ))}
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }
