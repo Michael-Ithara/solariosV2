@@ -1,4 +1,4 @@
-import { Moon, Sun, Bell, User, LogOut, Settings, Shield } from "lucide-react";
+import { Moon, Sun, Bell, User, LogOut, Settings, Shield, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -6,13 +6,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-export function AppNavbar() {
+interface AppNavbarProps {
+  onMenuClick: () => void;
+}
+
+export function AppNavbar({ onMenuClick }: AppNavbarProps) {
   const [isDark, setIsDark] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   // Initialize dark mode from localStorage
   useEffect(() => {
@@ -47,9 +53,24 @@ export function AppNavbar() {
 
   return (
     <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-      <div className="flex h-full items-center justify-between px-6 ml-24">
+      <div className={cn(
+        "flex h-full items-center justify-between px-6",
+        !isMobile && "ml-24"
+      )}>
         {/* Left side - App title */}
         <div className="flex items-center gap-4">
+          {/* Mobile menu button */}
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onMenuClick}
+              className="h-8 w-8 p-0 md:hidden"
+            >
+              <Menu className="h-4 w-4" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
+          )}
           <div>
             <h2 className="text-lg font-semibold">Solarios</h2>
             <p className="text-xs text-muted-foreground">Energy Management System</p>
