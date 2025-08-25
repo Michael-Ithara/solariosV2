@@ -185,9 +185,9 @@ export function AppSidebar() {
 
           {/* Navigation Items - Scrollable on mobile */}
           {isMobile ? (
-            <ScrollArea className="w-full">
-              <div className="flex gap-1 pb-1">
-                {allItems.map((item) => (
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="flex gap-1 pb-1" style={{ width: `${allItems.length * 44}px` }}>
+                {allItems.map((item, index) => (
                   <DockItem
                     key={item.url}
                     title={item.title}
@@ -195,11 +195,23 @@ export function AppSidebar() {
                     icon={item.icon}
                     color={item.color}
                     isActive={isActive(item.url)}
-                    onClick={() => isMobile && setIsVisible(false)}
+                    onClick={() => {
+                      if (isMobile) {
+                        setIsVisible(false);
+                        // Auto-scroll to center the clicked item
+                        const container = document.querySelector('.overflow-x-auto');
+                        if (container) {
+                          const itemWidth = 44; // w-10 + gap
+                          const containerWidth = container.clientWidth;
+                          const scrollPosition = Math.max(0, (index * itemWidth) - (containerWidth / 2) + (itemWidth / 2));
+                          container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+                        }
+                      }
+                    }}
                   />
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               {allItems.map((item) => (

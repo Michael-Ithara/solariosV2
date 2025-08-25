@@ -158,9 +158,11 @@ export default function Landing() {
                   Start Monitoring
                 </Button>
               )}
-              <Button variant="outline" size="lg" className="px-8 py-6 text-lg border-primary/30 hover:bg-primary/10">
-                Watch Demo
-              </Button>
+              <Link to="/dashboard">
+                <Button variant="outline" size="lg" className="px-8 py-6 text-lg border-primary/30 hover:bg-primary/10">
+                  Watch Demo
+                </Button>
+              </Link>
             </div>
           </div>
 
