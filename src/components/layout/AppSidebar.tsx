@@ -136,15 +136,16 @@ export function AppSidebar() {
           onClick={() => setIsVisible(!isVisible)}
           className={cn(
             "fixed top-4 left-4 z-[60] p-3 rounded-2xl transition-all duration-300",
-            "bg-white/20 backdrop-blur-md border border-white/20 shadow-lg",
-            "hover:bg-white/30 hover:scale-110",
-            isVisible && "rotate-90"
+            "bg-gradient-to-br from-primary/20 via-energy-solar/20 to-primary/20 backdrop-blur-md border border-white/30 shadow-lg",
+            "hover:from-primary/30 hover:via-energy-solar/30 hover:to-primary/30 hover:scale-110 hover:shadow-xl",
+            "hover:border-primary/50 hover:shadow-primary/20",
+            isVisible && "rotate-90 from-primary/40 via-energy-solar/40 to-primary/40"
           )}
         >
           {isVisible ? (
-            <X className="w-5 h-5 text-gray-700" />
+            <X className="w-5 h-5 text-primary drop-shadow-sm" />
           ) : (
-            <Menu className="w-5 h-5 text-gray-700" />
+            <Menu className="w-5 h-5 text-primary drop-shadow-sm" />
           )}
         </button>
       )}
@@ -160,7 +161,7 @@ export function AppSidebar() {
                 ? "translate-y-0 opacity-100" 
                 : "translate-y-full opacity-0 pointer-events-none"
             )
-          : "left-6 top-1/2 -translate-y-1/2"
+          : "left-10 top-1/2 -translate-y-1/2" // Centered in the 80px margin space
       )}>
         <div className={cn(
           "flex items-center rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl",
