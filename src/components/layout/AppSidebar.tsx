@@ -41,7 +41,6 @@ interface DockItemProps {
 
 const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
-  const isMobile = useIsMobile();
 
   return (
     <div className="relative group flex-shrink-0">
@@ -50,9 +49,7 @@ const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItem
         onClick={onClick}
         className={cn(
           "relative flex items-center justify-center transition-all duration-300 ease-out transform",
-          isMobile 
-            ? "w-10 h-10 rounded-xl" 
-            : "w-12 h-12 rounded-2xl hover:scale-150 hover:shadow-2xl hover:shadow-black/30",
+          "w-10 h-10 rounded-xl md:w-12 md:h-12 md:rounded-2xl md:hover:scale-150 md:hover:shadow-2xl md:hover:shadow-black/30",
           "backdrop-blur-md border border-white/20",
           isActive 
             ? "bg-white/90 shadow-lg scale-110" 
@@ -63,14 +60,14 @@ const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItem
       >
         <div className={cn(
           "rounded-lg flex items-center justify-center transition-all duration-300",
-          isMobile ? "w-5 h-5" : "w-6 h-6",
+          "w-5 h-5 md:w-6 md:h-6",
           isActive ? "bg-gradient-to-br" : "bg-transparent",
           isActive && color
         )}>
           <Icon 
             className={cn(
               "transition-all duration-300",
-              isMobile ? "w-4 h-4" : "w-5 h-5",
+              "w-4 h-4 md:w-5 md:h-5",
               isActive ? "text-white" : "text-gray-700 group-hover:text-gray-900"
             )} 
           />
@@ -168,7 +165,7 @@ export function AppSidebar() {
             : "flex-col gap-2 p-3"
         )}>
           {/* Logo */}
-          <div className={cn(isMobile ? "p-1 mr-1" : "p-2 mb-2", "flex-shrink-0")}>
+          <div className={cn("flex-shrink-0", isMobile ? "p-1 mr-1" : "p-2 mb-2")}>
             <div className={cn(
               "bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg",
               isMobile ? "w-8 h-8" : "w-10 h-10"
@@ -199,13 +196,15 @@ export function AppSidebar() {
                       if (isMobile) {
                         setIsVisible(false);
                         // Auto-scroll to center the clicked item
-                        const container = document.querySelector('.overflow-x-auto');
-                        if (container) {
-                          const itemWidth = 44; // w-10 + gap
-                          const containerWidth = container.clientWidth;
-                          const scrollPosition = Math.max(0, (index * itemWidth) - (containerWidth / 2) + (itemWidth / 2));
-                          container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
-                        }
+                        setTimeout(() => {
+                          const container = document.querySelector('.overflow-x-auto');
+                          if (container) {
+                            const itemWidth = 44; // w-10 + gap
+                            const containerWidth = container.clientWidth;
+                            const scrollPosition = Math.max(0, (index * itemWidth) - (containerWidth / 2) + (itemWidth / 2));
+                            container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+                          }
+                        }, 50);
                       }
                     }}
                   />
