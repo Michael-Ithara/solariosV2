@@ -7,10 +7,13 @@ import {
   Sun, 
   Activity,
   Lightbulb,
-  Shield
+  Shield,
+  Menu,
+  X
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
@@ -68,14 +71,16 @@ const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItem
         </div>
       </NavLink>
       
-      {/* Tooltip */}
+      {/* Tooltip - Hide on mobile */}
       <div className={cn(
-        "absolute left-16 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg",
+        "absolute px-3 py-1.5 rounded-lg",
         "bg-gray-900/90 text-white text-sm font-medium whitespace-nowrap",
         "backdrop-blur-md border border-white/10 shadow-xl",
         "transform transition-all duration-200 ease-out pointer-events-none",
-        "opacity-0 -translate-x-2 scale-95",
-        "group-hover:opacity-100 group-hover:translate-x-0 group-hover:scale-100"
+        "opacity-0 scale-95",
+        "group-hover:opacity-100 group-hover:scale-100",
+        "hidden md:block", // Hide on mobile
+        "left-16 top-1/2 -translate-y-1/2 -translate-x-2 group-hover:translate-x-0"
       )}>
         {title}
         <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900/90 rotate-45 border-l border-b border-white/10" />
@@ -88,6 +93,8 @@ export function AppSidebar() {
   const { hasPermission } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname;
+  const isMobile = useIsMobile();
+  const [isVisible, setIsVisible] = useState(!isMobile);
 
   const isActive = (path: string) => currentPath === path;
 
@@ -95,6 +102,13 @@ export function AppSidebar() {
   if (currentPath === "/") {
     return null;
   }
+
+  // Auto-hide on mobile when location changes
+  useEffect(() => {
+    if (isMobile) {
+      setIsVisible(false);
+    }
+  }, [currentPath, isMobile]);
 
   const allItems = [
     ...navigationItems,
@@ -108,30 +122,75 @@ export function AppSidebar() {
   ];
 
   return (
-    <div className="fixed left-6 top-1/2 -translate-y-1/2 z-50">
-      <div className="flex flex-col items-center gap-2 p-3 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
-        {/* Logo */}
-        <div className="mb-2 p-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg">
-            <Zap className="w-6 h-6 text-white" />
+    <>
+      {/* Mobile Trigger Button */}
+      {isMobile && (
+        <button
+          onClick={() => setIsVisible(!isVisible)}
+          className={cn(
+            "fixed top-4 left-4 z-[60] p-3 rounded-2xl transition-all duration-300",
+            "bg-white/20 backdrop-blur-md border border-white/20 shadow-lg",
+            "hover:bg-white/30 hover:scale-110",
+            isVisible && "rotate-90"
+          )}
+        >
+          {isVisible ? (
+            <X className="w-5 h-5 text-gray-700" />
+          ) : (
+            <Menu className="w-5 h-5 text-gray-700" />
+          )}
+        </button>
+      )}
+
+      {/* Floating Dock */}
+      <div className={cn(
+        "fixed z-50 transition-all duration-300 ease-out",
+        isMobile 
+          ? cn(
+              "left-1/2 bottom-6 -translate-x-1/2",
+              "transform transition-all duration-300",
+              isVisible 
+                ? "translate-y-0 opacity-100" 
+                : "translate-y-full opacity-0 pointer-events-none"
+            )
+          : "left-6 top-1/2 -translate-y-1/2"
+      )}>
+        <div className={cn(
+          "flex items-center gap-2 p-3 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl",
+          isMobile ? "flex-row" : "flex-col"
+        )}>
+          {/* Logo */}
+          <div className={cn("p-2", isMobile ? "mr-2" : "mb-2")}>
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg">
+              <Zap className="w-6 h-6 text-white" />
+            </div>
+          </div>
+
+          {/* Separator */}
+          <div className={cn(
+            "bg-white/20",
+            isMobile ? "w-px h-8 mr-2" : "w-8 h-px mb-2"
+          )} />
+
+          {/* Navigation Items */}
+          <div className={cn(
+            "flex gap-2",
+            isMobile ? "flex-row" : "flex-col"
+          )}>
+            {allItems.map((item) => (
+              <DockItem
+                key={item.url}
+                title={item.title}
+                url={item.url}
+                icon={item.icon}
+                color={item.color}
+                isActive={isActive(item.url)}
+                onClick={() => isMobile && setIsVisible(false)}
+              />
+            ))}
           </div>
         </div>
-
-        {/* Separator */}
-        <div className="w-8 h-px bg-white/20 mb-2" />
-
-        {/* Navigation Items */}
-        {allItems.map((item) => (
-          <DockItem
-            key={item.url}
-            title={item.title}
-            url={item.url}
-            icon={item.icon}
-            color={item.color}
-            isActive={isActive(item.url)}
-          />
-        ))}
       </div>
-    </div>
+    </>
   );
 }
