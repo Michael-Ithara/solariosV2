@@ -93,18 +93,15 @@ const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItem
 };
 
 export function AppSidebar() {
+  // ALWAYS call all hooks first - before any conditional logic
   const { hasPermission } = useAuth();
   const location = useLocation();
-  const currentPath = location.pathname;
   const isMobile = useIsMobile();
   const [isVisible, setIsVisible] = useState(!isMobile);
-
+  
+  // Process location after hooks
+  const currentPath = location.pathname;
   const isActive = (path: string) => currentPath === path;
-
-  // Don't show dock on landing page
-  if (currentPath === "/") {
-    return null;
-  }
 
   // Auto-hide on mobile when location changes
   useEffect(() => {
@@ -113,6 +110,7 @@ export function AppSidebar() {
     }
   }, [currentPath, isMobile]);
 
+  // Build items list after hooks
   const allItems = [
     ...navigationItems,
     ...(hasPermission('admin') ? [{ 
@@ -123,6 +121,12 @@ export function AppSidebar() {
     }] : []),
     ...energyItems,
   ];
+
+  // CONDITIONAL RENDERING AFTER ALL HOOKS
+  // Don't show dock on landing page
+  if (currentPath === "/") {
+    return null;
+  }
 
   return (
     <>
