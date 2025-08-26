@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
+import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       
       {/* Demo route - accessible to everyone */}
       <Route path="/demo" element={<div className="ml-20"><Dashboard /></div>} />
