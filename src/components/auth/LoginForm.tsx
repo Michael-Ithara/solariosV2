@@ -35,9 +35,11 @@ export function LoginForm({ onToggleMode, isSignUp }: LoginFormProps) {
         if (password.length < 6) {
           throw new Error('Password must be at least 6 characters');
         }
-        await signUp(email, password);
+        const { error } = await signUp(email, password);
+        if (error) throw error;
       } else {
-        await signIn(email, password);
+        const { error } = await signIn(email, password);
+        if (error) throw error;
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');

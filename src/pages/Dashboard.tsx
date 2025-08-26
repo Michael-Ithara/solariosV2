@@ -18,11 +18,13 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { GamificationPanel } from "@/components/gamification/GamificationPanel";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 
 
 export default function Dashboard() {
   const { currency, formatCurrency, convertFromUSD, isLoading: currencyLoading } = useCurrency();
   const { role } = useAuth();
+  const location = useLocation();
   const { 
     appliances, 
     energyLogs, 
@@ -34,6 +36,8 @@ export default function Dashboard() {
     useDemo 
   } = useSupabaseData();
   
+  // Determine if this is demo mode
+  const isDemoMode = location.pathname === '/demo' || useDemo;
   // Calculate dashboard metrics from real data
   const calculateMetrics = () => {
     const currentPower = appliances
@@ -92,7 +96,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold">
           Energy Dashboard
-          {useDemo && (
+          {isDemoMode && (
             <Badge variant="outline" className="ml-3 text-xs">
               Demo Mode
             </Badge>
@@ -104,11 +108,14 @@ export default function Dashboard() {
       </div>
 
       {/* Demo Mode Notice */}
-      {useDemo && (
+      {isDemoMode && (
         <AlertComponent className="border-primary/20 bg-primary/5">
           <AlertTriangle className="h-4 w-4 text-primary" />
           <AlertDescription>
-            You're viewing demo data. Sign in to connect your real energy monitoring devices and track your actual usage.
+            {location.pathname === '/demo' 
+              ? "You're viewing demo data. This showcases the app's capabilities with sample energy monitoring data."
+              : "You're viewing demo data. Sign in to connect your real energy monitoring devices and track your actual usage."
+            }
           </AlertDescription>
         </AlertComponent>
       )}

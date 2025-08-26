@@ -20,24 +20,22 @@ export const authService = {
     });
     
     if (error) throw error;
-    return data;
+    return { data, error };
   },
 
   // Sign in user
   async signIn(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password,
+    const redirectUrl = `${window.location.origin}/dashboard`;
     });
     
-    if (error) throw error;
-    return data;
+    return { data, error };
   },
 
   // Sign out user
   async signOut() {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
   },
 
   // Get current user

@@ -34,7 +34,7 @@ export function AppNavbar() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
+      // Navigation will be handled by auth state change
     } catch (error) {
       console.error('Error signing out:', error);
     }

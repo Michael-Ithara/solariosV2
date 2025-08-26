@@ -17,18 +17,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
-const navigationItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home, color: "from-blue-500 to-blue-600" },
-  { title: "Appliances", url: "/appliances", icon: Zap, color: "from-yellow-500 to-orange-500" },
-  { title: "Analytics", url: "/analytics", icon: BarChart3, color: "from-green-500 to-emerald-600" },
-  { title: "Settings", url: "/settings", icon: Settings, color: "from-gray-500 to-gray-600" },
-];
-
-const energyItems = [
-  { title: "Solar Production", url: "/solar", icon: Sun, color: "from-amber-500 to-yellow-500" },
-  { title: "Grid Usage", url: "/grid", icon: Activity, color: "from-purple-500 to-indigo-600" },
-  { title: "Energy Insights", url: "/insights", icon: Lightbulb, color: "from-cyan-500 to-blue-500" },
-];
 
 interface DockItemProps {
   title: string;
@@ -94,7 +82,7 @@ const DockItem = ({ title, url, icon: Icon, color, isActive, onClick }: DockItem
 
 export function AppSidebar() {
   // ALWAYS call all hooks first - before any conditional logic
-  const { hasPermission } = useAuth();
+  const { user, role, hasPermission } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [isVisible, setIsVisible] = useState(!isMobile);
@@ -110,21 +98,43 @@ export function AppSidebar() {
     }
   }, [currentPath, isMobile]);
 
-  // Build items list after hooks
-  const allItems = [
-    ...navigationItems,
-    ...(hasPermission('admin') ? [{ 
-      title: "Admin Panel", 
-      url: "/admin", 
-      icon: Shield, 
-      color: "from-red-500 to-pink-600" 
-    }] : []),
-    ...energyItems,
-  ];
+  // Build items list based on auth state
+  const getNavigationItems = () => {
+    // Demo mode - only dashboard access
+    if (currentPath === '/demo' || (!user && currentPath !== '/')) {
+      return [
+        { title: "Demo Dashboard", url: "/demo", icon: Home, color: "from-blue-500 to-blue-600" },
+      ];
+    }
+
+    // Authenticated users - full access
+    if (user) {
+      const baseItems = [
+        { title: "Dashboard", url: "/dashboard", icon: Home, color: "from-blue-500 to-blue-600" },
+        { title: "Appliances", url: "/appliances", icon: Zap, color: "from-yellow-500 to-orange-500" },
+        { title: "Analytics", url: "/analytics", icon: BarChart3, color: "from-green-500 to-emerald-600" },
+        { title: "Settings", url: "/settings", icon: Settings, color: "from-gray-500 to-gray-600" },
+      ];
+
+      const adminItems = hasPermission('admin') ? [{ 
+        title: "Admin Panel", 
+        url: "/admin", 
+        icon: Shield, 
+        color: "from-red-500 to-pink-600" 
+      }] : [];
+
+      return [...baseItems, ...adminItems];
+    }
+
+    // No items for landing page
+    return [];
+  };
+
+  const allItems = getNavigationItems();
 
   // CONDITIONAL RENDERING AFTER ALL HOOKS
   // Don't show dock on landing page
-  if (currentPath === "/") {
+  if (currentPath === "/" || allItems.length === 0) {
     return null;
   }
 

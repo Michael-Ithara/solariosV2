@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthUser, UserRole, authService } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -21,57 +22,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const role = authService.getUserRole(user);
 
   useEffect(() => {
-    // Listen for auth changes FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        const adminEmails = ['admin@solarios.com', 'admin@example.com'];
-        const role = adminEmails.includes(session.user.email || '') ? 'admin' : 'user';
-        setUser({ ...session.user, role });
-      } else {
+    // Get initial session first
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+          setUser(null);
+        } else if (session?.user) {
+          const adminEmails = ['admin@solarios.com', 'admin@example.com'];
+          const userRole = adminEmails.includes(session.user.email || '') ? 'admin' : 'user';
+          setUser({ ...session.user, role: userRole });
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Session error:', error);
         setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
 
-    // THEN get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    getInitialSession();
+
+    // Then listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state change:', event, session?.user?.email);
+      
       if (session?.user) {
         const adminEmails = ['admin@solarios.com', 'admin@example.com'];
-        const role = adminEmails.includes(session.user.email || '') ? 'admin' : 'user';
-        setUser({ ...session.user, role });
+        const userRole = adminEmails.includes(session.user.email || '') ? 'admin' : 'user';
+        setUser({ ...session.user, role: userRole });
       } else {
         setUser(null);
       }
-      setLoading(false);
+      
+      if (!loading) {
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    setLoading(true);
     try {
-      await authService.signIn(email, password);
-    } finally {
-      setLoading(false);
+      const { data, error } = await authService.signIn(email, password);
+      if (error) throw error;
+      
+      // Session will be updated via onAuthStateChange listener
+      console.log('Sign in successful:', data.user?.email);
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
     }
   };
 
   const signUp = async (email: string, password: string) => {
-    setLoading(true);
     try {
-      await authService.signUp(email, password);
-    } finally {
-      setLoading(false);
+      const { data, error } = await authService.signUp(email, password);
+      if (error) throw error;
+      
+      console.log('Sign up successful:', data.user?.email);
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
     }
   };
 
   const signOut = async () => {
-    setLoading(true);
     try {
-      await authService.signOut();
-    } finally {
-      setLoading(false);
+      const { error } = await authService.signOut();
+      if (error) throw error;
+      
+      console.log('Sign out successful');
+      // Session will be cleared via onAuthStateChange listener
+    } catch (error) {
+      console.error('Sign out error:', error);
+      throw error;
     }
   };
 

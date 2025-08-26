@@ -2,12 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppNavbar } from "@/components/layout/AppNavbar";
+import { useAuth } from "@/contexts/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import Appliances from "./pages/Appliances";
 import Analytics from "./pages/Analytics";
@@ -18,6 +19,77 @@ import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      
+      {/* Demo route - accessible to everyone */}
+      <Route path="/demo" element={<div className="ml-20"><Dashboard /></div>} />
+      
+      {/* Protected routes - require authentication */}
+      <Route 
+        path="/dashboard" 
+        element={
+          user ? (
+            <div className="ml-20"><Dashboard /></div>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
+      />
+      <Route 
+        path="/appliances" 
+        element={
+          user ? (
+            <div className="ml-20"><Appliances /></div>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
+      />
+      <Route 
+        path="/analytics" 
+        element={
+          user ? (
+            <div className="ml-20"><Analytics /></div>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute requiredRole="user">
+            <div className="ml-20"><Settings /></div>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin" 
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <div className="ml-20"><Admin /></div>
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Catch-all route */}
+      <Route path="*" element={<div className="ml-20"><NotFound /></div>} />
+    </Routes>
+  );
+}
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -31,30 +103,7 @@ const App = () => (
               <div className="w-full">
                 <AppNavbar />
                 <main className="w-full">
-                  <Routes>
-                    <Route path="/" element={<Landing />} />
-                    <Route path="/dashboard" element={<div className="md:ml-24"><Dashboard /></div>} />
-                    <Route path="/appliances" element={<div className="md:ml-24"><Appliances /></div>} />
-                    <Route path="/analytics" element={<div className="md:ml-24"><Analytics /></div>} />
-                    <Route 
-                      path="/settings" 
-                      element={
-                        <ProtectedRoute requiredRole="user">
-                          <div className="md:ml-24"><Settings /></div>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin" 
-                      element={
-                        <ProtectedRoute requiredRole="admin">
-                          <div className="md:ml-24"><Admin /></div>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<div className="md:ml-24"><NotFound /></div>} />
-                  </Routes>
+                  <AppRoutes />
                 </main>
               </div>
             </div>

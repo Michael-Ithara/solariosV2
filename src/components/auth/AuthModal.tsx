@@ -2,24 +2,25 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { LoginForm } from './LoginForm';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
   const [isSignUp, setIsSignUp] = useState(false);
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
       onClose();
-      navigate('/dashboard');
+      if (onSuccess) {
+        onSuccess();
+      }
     }
-  }, [user, onClose, navigate]);
+  }, [user, onClose, onSuccess]);
 
   const handleToggleMode = () => {
     setIsSignUp(!isSignUp);

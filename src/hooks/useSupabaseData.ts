@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 
 export function useSupabaseData() {
   const { user, role } = useAuth();
+  const location = useLocation();
   const [appliances, setAppliances] = useState([]);
   const [energyLogs, setEnergyLogs] = useState([]);
   const [solarData, setSolarData] = useState([]);
@@ -13,12 +15,12 @@ export function useSupabaseData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Determine if we should use demo data
-  const useDemo = role === 'guest' || !user;
+  // Determine if we should use demo data based on route and auth state
+  const useDemo = location.pathname === '/demo' || (role === 'guest' && !user);
 
   useEffect(() => {
     fetchData();
-  }, [user, role]);
+  }, [user, role, location.pathname]);
 
   const fetchData = async () => {
     try {

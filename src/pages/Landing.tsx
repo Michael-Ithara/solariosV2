@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,7 @@ export default function Landing() {
   const [currentFeature, setCurrentFeature] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsVisible(true);
@@ -81,6 +82,13 @@ export default function Landing() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleAuthSuccess = () => {
+    navigate('/dashboard');
+  };
+
+  const handleWatchDemo = () => {
+    navigate('/demo');
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-background overflow-hidden">
       {/* Animated background elements */}
@@ -158,11 +166,14 @@ export default function Landing() {
                   Start Monitoring
                 </Button>
               )}
-              <Link to="/dashboard">
-                <Button variant="outline" size="lg" className="px-8 py-6 text-lg border-primary/30 hover:bg-primary/10">
-                  Watch Demo
-                </Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="px-8 py-6 text-lg border-primary/30 hover:bg-primary/10"
+                onClick={handleWatchDemo}
+              >
+                Watch Demo
+              </Button>
             </div>
           </div>
 
@@ -294,9 +305,14 @@ export default function Landing() {
                 Get Started Now
               </Button>
             )}
-            <Button variant="outline" size="lg" className="px-8 py-6 text-lg border-primary/30 hover:bg-primary/10">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="px-8 py-6 text-lg border-primary/30 hover:bg-primary/10"
+              onClick={handleWatchDemo}
+            >
               <CheckCircle className="w-5 h-5 mr-2" />
-              Learn More
+              Watch Demo
             </Button>
           </div>
 
@@ -325,6 +341,7 @@ export default function Landing() {
       <AuthModal 
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
+        onSuccess={handleAuthSuccess}
       />
     </div>
   );

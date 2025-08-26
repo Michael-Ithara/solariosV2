@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 
 // Icon mapping for appliances
 const getApplianceIcon = (name: string) => {
@@ -38,6 +39,7 @@ const getApplianceIcon = (name: string) => {
 
 export default function Appliances() {
   const { role } = useAuth();
+  const location = useLocation();
   const { 
     appliances, 
     loading, 
@@ -46,6 +48,9 @@ export default function Appliances() {
     toggleAppliance, 
     addAppliance 
   } = useSupabaseData();
+  
+  // Determine if this is demo mode
+  const isDemoMode = location.pathname === '/demo' || useDemo;
   
   const [newApplianceName, setNewApplianceName] = useState('');
   const [newAppliancePower, setNewAppliancePower] = useState('');
@@ -97,7 +102,7 @@ export default function Appliances() {
         <div>
           <h1 className="text-3xl font-bold">
             Appliances
-            {useDemo && (
+            {isDemoMode && (
               <Badge variant="outline" className="ml-3 text-xs">
                 Demo Mode
               </Badge>
@@ -107,7 +112,8 @@ export default function Appliances() {
             Monitor and control your smart home devices
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        {!isDemoMode && (
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-energy text-primary-foreground shadow-energy">
               <Plus className="h-4 w-4 mr-2" />
@@ -152,14 +158,18 @@ export default function Appliances() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Demo Mode Notice */}
-      {useDemo && (
+      {isDemoMode && (
         <Alert className="border-primary/20 bg-primary/5">
           <AlertTriangle className="h-4 w-4 text-primary" />
           <AlertDescription>
-            You're viewing demo appliances. Sign in to add and control your real smart home devices.
+            {location.pathname === '/demo' 
+              ? "You're viewing demo appliances. This showcases smart home device monitoring capabilities."
+              : "You're viewing demo appliances. Sign in to add and control your real smart home devices."
+            }
           </AlertDescription>
         </Alert>
       )}
@@ -215,7 +225,7 @@ export default function Appliances() {
             trend={appliance.trend}
             lastUpdate={appliance.lastUpdate}
             onToggle={() => handleToggleAppliance(appliance.id)}
-            onSettings={() => handleApplianceSettings(appliance.id)}
+            onSettings={!isDemoMode ? () => handleApplianceSettings(appliance.id) : undefined}
           />
         ))}
       </div>
