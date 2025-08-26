@@ -27,7 +27,7 @@ export const authService = {
   async signIn(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
-    const redirectUrl = `${window.location.origin}/dashboard`;
+      password,
     });
     
     return { data, error };
@@ -36,6 +36,7 @@ export const authService = {
   // Sign out user
   async signOut() {
     const { error } = await supabase.auth.signOut();
+    return { error };
   },
 
   // Get current user
