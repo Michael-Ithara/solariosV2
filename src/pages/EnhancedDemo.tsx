@@ -145,7 +145,19 @@ export default function EnhancedDemo() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <EnergyChart height={350} />
+              <EnergyChart 
+                type="area" 
+                height={350} 
+                simulationData={simulationState.devices.length > 0 ? [{
+                  time: new Date(simulationState.currentTime).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  }),
+                  consumption: parseFloat(simulationState.totalConsumption.toFixed(2)),
+                  solar: parseFloat(simulationState.solarProduction.toFixed(2)),
+                  grid: parseFloat(Math.max(0, simulationState.totalConsumption - simulationState.solarProduction).toFixed(2))
+                }] : undefined}
+              />
             </CardContent>
           </Card>
         </div>

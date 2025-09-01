@@ -1,28 +1,125 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-
-// Mock data for energy consumption
-const energyData = [
-  { time: '00:00', solar: 0, grid: 2.1, consumption: 2.1 },
-  { time: '06:00', solar: 0.5, grid: 3.2, consumption: 3.7 },
-  { time: '09:00', solar: 4.2, grid: 1.8, consumption: 6.0 },
-  { time: '12:00', solar: 7.8, grid: 0, consumption: 5.2 },
-  { time: '15:00', solar: 6.1, grid: 0, consumption: 4.8 },
-  { time: '18:00', solar: 2.3, grid: 2.1, consumption: 4.4 },
-  { time: '21:00', solar: 0, grid: 3.8, consumption: 3.8 },
-  { time: '23:59', solar: 0, grid: 2.5, consumption: 2.5 },
-];
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EnergyChartProps {
   type?: 'line' | 'area';
   height?: number;
+  simulationData?: any[];
 }
 
-export function EnergyChart({ type = 'line', height = 300 }: EnergyChartProps) {
+export function EnergyChart({ type = 'line', height = 300, simulationData }: EnergyChartProps) {
+  const [realTimeData, setRealTimeData] = useState<any[]>([]);
+  const location = useLocation();
+  const { user } = useAuth();
+  
+  // Determine if we're in demo/simulation mode
+  const isSimulationMode = location.pathname === '/demo' || location.pathname.includes('enhanced-demo');
+  
+  // Mock data for fallback
+  const mockData = [
+    { time: '00:00', solar: 0, grid: 2.1, consumption: 2.1 },
+    { time: '06:00', solar: 0.5, grid: 3.2, consumption: 3.7 },
+    { time: '09:00', solar: 4.2, grid: 1.8, consumption: 6.0 },
+    { time: '12:00', solar: 7.8, grid: 0, consumption: 5.2 },
+    { time: '15:00', solar: 6.1, grid: 0, consumption: 4.8 },
+    { time: '18:00', solar: 2.3, grid: 2.1, consumption: 4.4 },
+    { time: '21:00', solar: 0, grid: 3.8, consumption: 3.8 },
+    { time: '23:59', solar: 0, grid: 2.5, consumption: 2.5 },
+  ];
+
+  // Fetch real-time energy data from Supabase
+  useEffect(() => {
+    if (isSimulationMode || !user) return;
+
+    const fetchEnergyData = async () => {
+      try {
+        // Get recent energy logs for chart
+        const { data: energyLogs } = await supabase
+          .from('energy_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('logged_at', { ascending: false })
+          .limit(24);
+
+        // Get recent solar data
+        const { data: solarData } = await supabase
+          .from('solar_data')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('logged_at', { ascending: false })
+          .limit(24);
+
+        // Transform data for chart
+        const chartData = energyLogs?.map((log, index) => {
+          const time = new Date(log.logged_at).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+          const solar = solarData?.[index]?.generation_kwh || 0;
+          const consumption = log.consumption_kwh || 0;
+          const grid = Math.max(0, consumption - solar);
+
+          return {
+            time,
+            solar: parseFloat(solar.toFixed(2)),
+            grid: parseFloat(grid.toFixed(2)),
+            consumption: parseFloat(consumption.toFixed(2))
+          };
+        }).reverse() || [];
+
+        setRealTimeData(chartData);
+      } catch (error) {
+        console.error('Error fetching energy data:', error);
+      }
+    };
+
+    fetchEnergyData();
+
+    // Set up real-time subscription for energy logs
+    const channel = supabase
+      .channel('energy-chart-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'energy_logs',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchEnergyData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'solar_data',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchEnergyData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isSimulationMode]);
+
+  // Choose data source based on mode
+  const chartData = simulationData || (isSimulationMode ? mockData : realTimeData.length > 0 ? realTimeData : mockData);
+  
   const ChartComponent = type === 'area' ? AreaChart : LineChart;
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ChartComponent data={energyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+      <ChartComponent data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
         <XAxis 
           dataKey="time" 

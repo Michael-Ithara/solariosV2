@@ -19,6 +19,7 @@ import { GamificationPanel } from "@/components/gamification/GamificationPanel";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
+import { useRealTimeEnergyData } from "@/hooks/useRealTimeEnergyData";
 
 
 export default function Dashboard() {
@@ -36,10 +37,49 @@ export default function Dashboard() {
     useDemo 
   } = useSupabaseData();
   
+  // Real-time energy data for charts and live metrics
+  const { energyData, metrics, isLoading: realtimeLoading } = useRealTimeEnergyData();
+  
   // Determine if this is demo mode
   const isDemoMode = location.pathname === '/demo' || useDemo;
-  // Calculate dashboard metrics from real data
+  // Calculate dashboard metrics from real data or real-time metrics
   const calculateMetrics = () => {
+    // Use real-time metrics if available and not in demo mode
+    if (!isDemoMode && !realtimeLoading && metrics.lastUpdate) {
+      const dailyConsumption = energyLogs
+        .filter(log => {
+          const logDate = new Date(log.logged_at);
+          const today = new Date();
+          return logDate.toDateString() === today.toDateString();
+        })
+        .reduce((sum, log) => sum + log.consumption_kwh, 0);
+      
+      const dailySolar = solarData
+        .filter(data => {
+          const dataDate = new Date(data.logged_at);
+          const today = new Date();
+          return dataDate.toDateString() === today.toDateString();
+        })
+        .reduce((sum, data) => sum + data.generation_kwh, 0);
+
+      return {
+        currentPower: metrics.currentUsage,
+        solarProduction: metrics.solarProduction,
+        gridUsage: metrics.gridUsage,
+        batteryLevel: metrics.batteryLevel,
+        dailyConsumption,
+        dailySolar,
+        monthlySavings: convertFromUSD(156), // Mock for now
+        trends: {
+          power: 12,
+          solar: 8,
+          grid: -15,
+          battery: 5
+        }
+      };
+    }
+
+    // Fallback to static calculation
     const currentPower = appliances
       .filter(a => a.status === 'on')
       .reduce((sum, a) => sum + (a.power_rating_w || 0), 0) / 1000; // Convert to kW
@@ -212,7 +252,10 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <EnergyChart height={350} />
+              <EnergyChart 
+                height={350}
+                simulationData={!isDemoMode && energyData.length > 0 ? energyData : undefined}
+              />
             </CardContent>
           </Card>
         </div>
