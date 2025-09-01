@@ -376,6 +376,54 @@ export type Database = {
           },
         ]
       }
+      real_time_energy_data: {
+        Row: {
+          active_devices: number
+          battery_level_percent: number
+          cloud_cover_percent: number | null
+          consumption_kw: number
+          created_at: string
+          grid_usage_kw: number
+          id: string
+          solar_production_kw: number
+          temperature_celsius: number | null
+          timestamp: string
+          total_devices: number
+          user_id: string
+          weather_condition: string | null
+        }
+        Insert: {
+          active_devices?: number
+          battery_level_percent?: number
+          cloud_cover_percent?: number | null
+          consumption_kw?: number
+          created_at?: string
+          grid_usage_kw?: number
+          id?: string
+          solar_production_kw?: number
+          temperature_celsius?: number | null
+          timestamp?: string
+          total_devices?: number
+          user_id: string
+          weather_condition?: string | null
+        }
+        Update: {
+          active_devices?: number
+          battery_level_percent?: number
+          cloud_cover_percent?: number | null
+          consumption_kw?: number
+          created_at?: string
+          grid_usage_kw?: number
+          id?: string
+          solar_production_kw?: number
+          temperature_celsius?: number | null
+          timestamp?: string
+          total_devices?: number
+          user_id?: string
+          weather_condition?: string | null
+        }
+        Relationships: []
+      }
       solar_data: {
         Row: {
           created_at: string
