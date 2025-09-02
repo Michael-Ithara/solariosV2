@@ -376,6 +376,69 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          battery_capacity: number | null
+          bio: string | null
+          created_at: string
+          currency: string
+          dashboard_layout: string
+          display_name: string | null
+          electricity_rate: number
+          email_notifications: boolean
+          home_size_sqft: number | null
+          id: string
+          notifications_enabled: boolean
+          occupants: number | null
+          push_notifications: boolean
+          solar_panel_capacity: number | null
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          battery_capacity?: number | null
+          bio?: string | null
+          created_at?: string
+          currency?: string
+          dashboard_layout?: string
+          display_name?: string | null
+          electricity_rate?: number
+          email_notifications?: boolean
+          home_size_sqft?: number | null
+          id?: string
+          notifications_enabled?: boolean
+          occupants?: number | null
+          push_notifications?: boolean
+          solar_panel_capacity?: number | null
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          battery_capacity?: number | null
+          bio?: string | null
+          created_at?: string
+          currency?: string
+          dashboard_layout?: string
+          display_name?: string | null
+          electricity_rate?: number
+          email_notifications?: boolean
+          home_size_sqft?: number | null
+          id?: string
+          notifications_enabled?: boolean
+          occupants?: number | null
+          push_notifications?: boolean
+          solar_panel_capacity?: number | null
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       real_time_energy_data: {
         Row: {
           active_devices: number
