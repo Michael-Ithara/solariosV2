@@ -17,6 +17,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
 import AuthCallback from "./pages/AuthCallback";
+import Auth from "./pages/Auth";
 import EnhancedDemo from "./pages/EnhancedDemo";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/auth" element={<Auth />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       
       {/* Demo route - accessible to everyone */}
@@ -47,7 +49,7 @@ function AppRoutes() {
           user ? (
             <div className="ml-20"><Dashboard /></div>
           ) : (
-            <Navigate to="/" replace />
+            <Navigate to="/auth" replace />
           )
         } 
       />
@@ -57,7 +59,7 @@ function AppRoutes() {
           user ? (
             <div className="ml-20"><Appliances /></div>
           ) : (
-            <Navigate to="/" replace />
+            <Navigate to="/auth" replace />
           )
         } 
       />
@@ -67,7 +69,7 @@ function AppRoutes() {
           user ? (
             <div className="ml-20"><Analytics /></div>
           ) : (
-            <Navigate to="/" replace />
+            <Navigate to="/auth" replace />
           )
         } 
       />

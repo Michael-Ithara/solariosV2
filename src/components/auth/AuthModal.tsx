@@ -27,7 +27,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
   };
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-gradient-to-br from-background/95 to-primary/5 backdrop-blur-sm border-primary/20">
         <LoginForm onToggleMode={handleToggleMode} isSignUp={isSignUp} />
       </DialogContent>
     </Dialog>

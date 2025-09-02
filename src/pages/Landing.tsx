@@ -117,14 +117,15 @@ export default function Landing() {
               </Button>
             </Link>
           ) : (
-            <Button 
-              variant="outline" 
-              className="border-primary/20 hover:bg-primary/10"
-              onClick={() => setShowAuthModal(true)}
-            >
-              Sign In
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
+            <Link to="/auth">
+              <Button 
+                variant="outline" 
+                className="border-primary/20 hover:bg-primary/10"
+              >
+                Sign In
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
           )}
         </div>
       </nav>
@@ -157,14 +158,15 @@ export default function Landing() {
                   </Button>
                 </Link>
               ) : (
-                <Button 
-                  size="lg" 
-                  className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl"
-                  onClick={() => setShowAuthModal(true)}
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  Start Monitoring
-                </Button>
+                <Link to="/auth?mode=signup">
+                  <Button 
+                    size="lg" 
+                    className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl"
+                  >
+                    <Play className="w-5 h-5 mr-2" />
+                    Start Monitoring
+                  </Button>
+                </Link>
               )}
               <Button 
                 variant="outline" 
@@ -263,15 +265,16 @@ export default function Landing() {
                 </Button>
               </Link>
             ) : (
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="px-8 py-6 text-lg border-success/30 hover:bg-success/10"
-                onClick={() => setShowAuthModal(true)}
-              >
-                <Trophy className="w-5 h-5 mr-2" />
-                View All Achievements
-              </Button>
+              <Link to="/auth?mode=signup">
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="px-8 py-6 text-lg border-success/30 hover:bg-success/10"
+                >
+                  <Trophy className="w-5 h-5 mr-2" />
+                  View All Achievements
+                </Button>
+              </Link>
             )}
           </div>
         </div>
@@ -296,14 +299,15 @@ export default function Landing() {
                 </Button>
               </Link>
             ) : (
-              <Button 
-                size="lg" 
-                className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl"
-                onClick={() => setShowAuthModal(true)}
-              >
-                <Zap className="w-5 h-5 mr-2" />
-                Get Started Now
-              </Button>
+              <Link to="/auth?mode=signup">
+                <Button 
+                  size="lg" 
+                  className="px-8 py-6 text-lg bg-gradient-energy hover:scale-105 transition-transform shadow-xl"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Get Started Now
+                </Button>
+              </Link>
             )}
             <Button 
               variant="outline" 
@@ -338,11 +342,7 @@ export default function Landing() {
         </div>
       </footer>
       
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-        onSuccess={handleAuthSuccess}
-      />
+      {/* Keep the modal as fallback but update its usage to be minimal */}
     </div>
   );
 }
