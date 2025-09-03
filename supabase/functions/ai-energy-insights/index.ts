@@ -14,11 +14,10 @@ serve(async (req) => {
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    if (!openAIApiKey || !supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Required environment variables are missing');
     }
 
@@ -106,82 +105,174 @@ serve(async (req) => {
       monthlyCost: parseFloat((totalConsumption * (profile?.electricity_rate || 0.12)).toFixed(2))
     };
 
-    // Generate AI insights and recommendations
-    const aiPrompt = `
-Analyze this home energy usage data and provide personalized insights and recommendations:
+    // Generate insights using built-in rule-based engine (no external APIs)
+    const rate = analysisData.profile.electricityRate || 0.12;
 
-${JSON.stringify(analysisData, null, 2)}
+    // Compute 15-day usage trend
+    const now = Date.now();
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const fifteenDaysAgo = now - 15 * 24 * 60 * 60 * 1000;
 
-Please provide:
-1. 3-5 specific energy efficiency recommendations with estimated savings in kWh and currency
-2. 2-3 key insights about their energy usage patterns
-3. Energy forecast for next month based on current trends
-4. Priority level for each recommendation (high, medium, low)
+    const sumInRange = (logs: any[], start: number, end: number) =>
+      logs
+        .filter((l) => {
+          const t = new Date(l.logged_at).getTime();
+          return t >= start && t < end;
+        })
+        .reduce((s, l) => s + (Number(l.consumption_kwh) || 0), 0);
 
-Format your response as a JSON object with this structure:
-{
-  "insights": [
-    {
-      "title": "Insight title",
-      "description": "Detailed description",
-      "category": "usage_pattern" | "efficiency" | "cost" | "solar"
+    const firstHalf = sumInRange(energyLogs, thirtyDaysAgo, fifteenDaysAgo);
+    const secondHalf = sumInRange(energyLogs, fifteenDaysAgo, now);
+    let growthRate = firstHalf > 0 ? (secondHalf - firstHalf) / firstHalf : 0;
+    growthRate = Math.max(-0.15, Math.min(0.15, growthRate));
+
+    const nextMonthConsumption = Math.max(0, parseFloat(((analysisData.usage.avgDailyConsumption || 0) * 30 * (1 + growthRate)).toFixed(2)));
+    const nextMonthSolar = Math.max(0, parseFloat(((analysisData.usage.avgDailySolar || 0) * 30 * (1 + growthRate * 0.5)).toFixed(2)));
+    const nextMonthCost = parseFloat((nextMonthConsumption * rate).toFixed(2));
+    const confidence: 'high' | 'medium' | 'low' =
+      Math.abs(growthRate) < 0.05 ? 'high' : Math.abs(growthRate) < 0.1 ? 'medium' : 'low';
+
+    // Build insights
+    const insights = [] as Array<{ title: string; description: string; category: 'usage_pattern' | 'efficiency' | 'cost' | 'solar' }>;    
+    if (analysisData.usage.peakUsageHour !== null) {
+      const dailyPeakAvg = analysisData.usage.peakUsageAmount ? parseFloat((analysisData.usage.peakUsageAmount / 30).toFixed(2)) : null;
+      insights.push({
+        title: `Peak usage around ${String(analysisData.usage.peakUsageHour).padStart(2, '0')}:00`,
+        description: dailyPeakAvg ? `This hour averages ~${dailyPeakAvg} kWh/day. Consider shifting flexible loads.` : `Consider shifting flexible loads away from this hour.`,
+        category: 'usage_pattern',
+      });
     }
-  ],
-  "recommendations": [
-    {
-      "title": "Recommendation title",
-      "description": "Detailed description with actionable steps",
-      "expectedSavingsKwh": number,
-      "expectedSavingsCurrency": number,
-      "priority": "high" | "medium" | "low",
-      "category": "appliance" | "solar" | "battery" | "behavior"
-    }
-  ],
-  "forecast": {
-    "nextMonthConsumption": number,
-    "nextMonthCost": number,
-    "nextMonthSolar": number,
-    "confidence": "high" | "medium" | "low"
-  }
-}`;
 
-    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert energy efficiency consultant. Analyze energy data and provide actionable, personalized recommendations. Always provide realistic estimates and practical advice.'
-          },
-          {
-            role: 'user',
-            content: aiPrompt
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.3,
-      }),
+    insights.push({
+      title: 'Monthly energy cost estimate',
+      description: `Based on recent usage, your monthly cost is approximately ${nextMonthCost.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}.`,
+      category: 'cost',
     });
 
-    if (!openAIResponse.ok) {
-      throw new Error(`OpenAI API error: ${openAIResponse.statusText}`);
+    if (analysisData.usage.avgDailySolar > 0) {
+      insights.push({
+        title: 'Solar contribution',
+        description: `Solar covers ~${Math.round((analysisData.usage.avgDailySolar / (analysisData.usage.avgDailyConsumption || 1)) * 100)}% of daily usage on average.`,
+        category: 'solar',
+      });
     }
 
-    const aiResult = await openAIResponse.json();
-    const analysisResult = JSON.parse(aiResult.choices[0].message.content);
+    if (appliances.length > 0) {
+      const top = [...appliances].sort((a, b) => (b.power_rating_w || 0) - (a.power_rating_w || 0))[0];
+      insights.push({
+        title: `High-load device: ${top.name}`,
+        description: `Rated at ${top.power_rating_w}W. Scheduling or upgrading this device can reduce bills.`,
+        category: 'efficiency',
+      });
+    }
+
+    // Build recommendations (snake_case fields as expected by the app)
+    const recommendations: Array<{
+      title: string;
+      description: string;
+      expected_savings_kwh: number;
+      expected_savings_currency: number;
+      priority: 'high' | 'medium' | 'low';
+      category: string;
+    }> = [];
+
+    // 1) Peak shifting
+    if (analysisData.usage.peakUsageAmount) {
+      const dailyPeakAvg = analysisData.usage.peakUsageAmount / 30;
+      const savingsKwh = parseFloat((dailyPeakAvg * 0.2 * 30).toFixed(2)); // 20% of peak hour load
+      recommendations.push({
+        title: 'Shift peak-hour usage',
+        description: 'Run dishwasher, EV charging, and laundry outside your peak hour to cut demand charges and reduce grid stress.',
+        expected_savings_kwh: savingsKwh,
+        expected_savings_currency: parseFloat((savingsKwh * rate).toFixed(2)),
+        priority: 'high',
+        category: 'behavior',
+      });
+    }
+
+    // 2) Standby load reduction
+    const standbyKwh = parseFloat((totalConsumption * 0.03).toFixed(2)); // ~3% conservative
+    recommendations.push({
+      title: 'Eliminate standby loads',
+      description: 'Use smart plugs or power strips to fully turn off TVs, game consoles, and chargers when not in use.',
+      expected_savings_kwh: standbyKwh,
+      expected_savings_currency: parseFloat((standbyKwh * rate).toFixed(2)),
+      priority: standbyKwh > 10 ? 'medium' : 'low',
+      category: 'behavior',
+    });
+
+    // 3) Appliance upgrade target
+    const inefficient = appliances
+      .filter((a) => (a.power_rating_w || 0) >= 1500)
+      .sort((a, b) => (b.power_rating_w || 0) - (a.power_rating_w || 0))[0];
+    if (inefficient) {
+      const savingsKwh = parseFloat(((inefficient.power_rating_w / 1000) * 0.3 * 30).toFixed(2)); // estimate 30% savings if upgraded
+      recommendations.push({
+        title: `Upgrade or tune ${inefficient.name}`,
+        description: 'Consider a high-efficiency model or maintenance (clean filters, descale).',
+        expected_savings_kwh: savingsKwh,
+        expected_savings_currency: parseFloat((savingsKwh * rate).toFixed(2)),
+        priority: 'medium',
+        category: 'appliance',
+      });
+    }
+
+    // 4) Solar optimization or install assessment
+    if ((analysisData.profile.solarCapacity || 0) > 0) {
+      const extraSelfUseKwh = parseFloat((Math.max(0, analysisData.usage.avgDailySolar - 0.5) * 0.1 * 30).toFixed(2));
+      if (extraSelfUseKwh > 0) {
+        recommendations.push({
+          title: 'Improve solar self-consumption',
+          description: 'Time flexible loads during midday and consider a small battery to store excess.',
+          expected_savings_kwh: extraSelfUseKwh,
+          expected_savings_currency: parseFloat((extraSelfUseKwh * rate).toFixed(2)),
+          priority: 'low',
+          category: 'solar',
+        });
+      }
+    } else {
+      const solarKwh = parseFloat(((analysisData.usage.avgDailyConsumption || 0) * 0.25 * 30).toFixed(2));
+      recommendations.push({
+        title: 'Assess rooftop solar feasibility',
+        description: 'Based on usage, a modest solar system could offset ~25% of your consumption.',
+        expected_savings_kwh: solarKwh,
+        expected_savings_currency: parseFloat((solarKwh * rate).toFixed(2)),
+        priority: 'medium',
+        category: 'solar',
+      });
+    }
+
+    // Ensure at least 3 recommendations
+    if (recommendations.length < 3 && totalConsumption > 0) {
+      const hvacKwh = parseFloat((totalConsumption * 0.05).toFixed(2));
+      recommendations.push({
+        title: 'Optimize HVAC settings',
+        description: 'Set thermostat 1-2°C closer to ambient and use scheduled setbacks.',
+        expected_savings_kwh: hvacKwh,
+        expected_savings_currency: parseFloat((hvacKwh * rate).toFixed(2)),
+        priority: 'high',
+        category: 'behavior',
+      });
+    }
+
+    const analysisResult = {
+      insights,
+      recommendations,
+      forecast: {
+        nextMonthConsumption,
+        nextMonthCost,
+        nextMonthSolar,
+        confidence,
+      },
+    };
 
     // Store recommendations in database
     const recommendationsToStore = analysisResult.recommendations.map((rec: any) => ({
       user_id: userId,
       title: rec.title,
       description: rec.description,
-      expected_savings_kwh: rec.expectedSavingsKwh,
-      expected_savings_currency: rec.expectedSavingsCurrency,
+      expected_savings_kwh: rec.expected_savings_kwh,
+      expected_savings_currency: rec.expected_savings_currency,
       priority: rec.priority
     }));
 
@@ -213,7 +304,7 @@ Format your response as a JSON object with this structure:
           value: analysisResult.forecast.nextMonthConsumption,
           period_start: new Date().toISOString(),
           period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          model: 'gpt-4.1-2025-04-14'
+           model: 'lovable-energy-v1'
         },
         {
           user_id: userId,
@@ -221,7 +312,7 @@ Format your response as a JSON object with this structure:
           value: analysisResult.forecast.nextMonthSolar,
           period_start: new Date().toISOString(),
           period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          model: 'gpt-4.1-2025-04-14'
+          model: 'lovable-energy-v1'
         }
       ]);
 
