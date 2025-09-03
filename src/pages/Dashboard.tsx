@@ -310,6 +310,36 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Quick AI Insights Preview */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">AI Insights Preview</h2>
+          <Card className="px-3 py-1 bg-primary/10 border-primary/20">
+            <span className="text-xs font-medium text-primary">
+              Visit Insights page for full analysis
+            </span>
+          </Card>
+        </div>
+        <Card className="p-6 text-center bg-gradient-to-br from-primary/5 to-transparent border-primary/20">
+          <Lightbulb className="h-12 w-12 text-primary mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Personalized Energy Recommendations</h3>
+          <p className="text-muted-foreground mb-4">
+            Get AI-powered insights about your energy usage patterns and personalized recommendations to optimize efficiency and reduce costs.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Card className="px-3 py-2 bg-background border">
+              <span className="text-xs font-medium">Smart Analysis</span>
+            </Card>
+            <Card className="px-3 py-2 bg-background border">
+              <span className="text-xs font-medium">Cost Savings</span>
+            </Card>
+            <Card className="px-3 py-2 bg-background border">
+              <span className="text-xs font-medium">Usage Patterns</span>
+            </Card>
+          </div>
+        </Card>
+      </div>
+
       {/* Gamification Section */}
       <div>
         <h2 className="text-2xl font-bold mb-4">Achievements & Progress</h2>

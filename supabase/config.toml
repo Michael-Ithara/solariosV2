@@ -50,3 +50,6 @@ enable_confirmations = false
 
 [functions.energy-simulation]
 verify_jwt = false
+
+[functions.ai-energy-insights]
+verify_jwt = false

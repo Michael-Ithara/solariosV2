@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import Appliances from "./pages/Appliances";
 import Analytics from "./pages/Analytics";
+import Insights from "./pages/Insights";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -68,6 +69,16 @@ function AppRoutes() {
         element={
           user ? (
             <div className="ml-20"><Analytics /></div>
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        } 
+      />
+      <Route 
+        path="/insights" 
+        element={
+          user ? (
+            <div className="ml-20"><Insights /></div>
           ) : (
             <Navigate to="/auth" replace />
           )
