@@ -1,32 +1,33 @@
 Solarios is a smart energy analytics platform designed to help households, businesses, and communities optimize energy efficiency and reduce costs.
 Using AI-powered analytics, IoT simulations, and gamification, Solarios transforms raw energy data into actionable insights for smarter consumption and a greener future.
 
-🌟 Key Features
+Key Features
 
-🔑 Secure User Accounts with email/password + OAuth login via Supabase.
+Secure User Accounts with email/password + OAuth login via Supabase.
 
-🌤️ Weather-Aware Solar Simulation that predicts solar output in real time.
+Weather-Aware Solar Simulation that predicts solar output in real time.
 
-📊 Interactive Energy Analytics Dashboard with clear, actionable data.
+Interactive Energy Analytics Dashboard with clear, actionable data.
 
-🧠 AI Insights & Anomaly Detection to forecast usage patterns and detect inefficiencies.
+AI Insights & Anomaly Detection to forecast usage patterns and detect inefficiencies.
 
-🏆 Gamification Engine to drive user engagement and energy-saving behavior.
+Gamification Engine to drive user engagement and energy-saving behavior.
 
-🎮 Demo Mode to let prospective customers explore the platform before signing up.
+Demo Mode to let prospective customers explore the platform before signing up.
 
-💼 Enterprise-Ready Architecture with scalability in mind.
+Enterprise-Ready Architecture with scalability in mind.
 
-🛠️ Tech Overview
+Tech Overview
 Layer	Technology
 Frontend	React, Vite, TypeScript, Tailwind, ShadCN UI
 Backend	Supabase (Auth, Database, RLS)
 AI/ML	Python Models for Forecasting & Anomaly Detection
 Simulations	IoT-like device simulation with Node.js & WebSockets
 Hosting	Vercel / Supabase / Netlify (Production-grade)
-🚀 For Developers & Partners
 
-🔒 Private & Proprietary Software — Solarios is not open-source.
+For Developers & Partners
+
+Private & Proprietary Software — Solarios is not open-source.
 Access is restricted to authorized developers, contributors, and business partners.
 
 To set up Solarios locally:
@@ -39,7 +40,7 @@ npm run dev
 
 You’ll need a .env file with Supabase credentials and API keys.
 
-🔐 Licensing
+Licensing
 
 Solarios is proprietary software owned by Michael Kihuyu.
 
