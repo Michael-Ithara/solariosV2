@@ -224,8 +224,7 @@ export default function Analytics() {
             <div className="pt-4 border-t">
               <h4 className="text-sm font-medium mb-2">Optimization Tip</h4>
               <p className="text-xs text-muted-foreground">
-                Shift energy-intensive activities to {analyticsData.peakHours.production} 
-                to maximize solar usage and reduce grid dependence.
+                Shift energy-intensive activities to {analyticsData.peakHours.production} to maximize solar usage and reduce grid dependence.
               </p>
             </div>
           </CardContent>
