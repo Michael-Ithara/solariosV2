@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,14 +28,42 @@ export function useSimulation() {
     speedMultiplier: 1
   });
 
+  // Memoized calculations to prevent unnecessary re-renders
+  const totalConsumption = useMemo(() => 
+    simulationState.devices.reduce((sum, device) => sum + device.currentUsage, 0),
+    [simulationState.devices]
+  );
+
+  const solarProduction = useMemo(() => {
+    const now = simulationState.currentTime;
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    
+    if (hour < 6 || hour > 18) return 0;
+    
+    const dayProgress = (hour - 6 + minute / 60) / 12;
+    const solarCurve = Math.sin(dayProgress * Math.PI);
+    const cloudReduction = 1 - (simulationState.weather.cloudCover * 0.7);
+    
+    return Math.max(0, solarCurve * 8 * cloudReduction);
+  }, [simulationState.currentTime, simulationState.weather.cloudCover]);
+
+  const gridPrice = useMemo(() => {
+    const hour = simulationState.currentTime.getHours();
+    if (hour >= 16 && hour <= 20) return 0.25; // Peak
+    if (hour >= 9 && hour <= 16) return 0.15; // Mid-peak
+    return 0.12; // Off-peak
+  }, [simulationState.currentTime]);
+
   const [realtimeChannel, setRealtimeChannel] = useState<any>(null);
   const isDemoMode = location.pathname === '/demo' || !user;
 
-  // Initialize simulation
+  // Auto-start simulation on mount for demo mode
   useEffect(() => {
     if (isDemoMode) {
-      loadDemoDevices();
-      startSimulation();
+      loadDemoDevices().then(() => {
+        setTimeout(startSimulation, 1000); // Slight delay for smoother UX
+      });
     } else {
       loadUserDevices();
     }
@@ -47,6 +75,16 @@ export function useSimulation() {
       }
     };
   }, [isDemoMode, user]);
+
+  // Update calculated values in state
+  useEffect(() => {
+    setSimulationState(prev => ({
+      ...prev,
+      totalConsumption,
+      solarProduction,
+      gridPrice
+    }));
+  }, [totalConsumption, solarProduction, gridPrice]);
 
   const loadDemoDevices = async () => {
     try {
@@ -240,45 +278,35 @@ export function useSimulation() {
 
     setSimulationState(prev => ({ ...prev, isRunning: true }));
 
+    // Optimized simulation loop - smoother updates
     intervalRef.current = setInterval(() => {
       setSimulationState(prev => {
-        const now = new Date();
-        const hour = now.getHours();
+        const now = new Date(prev.currentTime.getTime() + 30000); // Advance 30 seconds
         const minute = now.getMinutes();
         
-        // Simulate solar production based on time of day
-        let solarProduction = 0;
-        if (hour >= 6 && hour <= 18) {
-          const dayProgress = (hour - 6) / 12;
-          const solarCurve = Math.sin(dayProgress * Math.PI);
-          solarProduction = solarCurve * 8 * (1 - prev.weather.cloudCover * 0.7); // Max 8kW
-        }
-
-        // Calculate total consumption
-        const totalConsumption = prev.devices.reduce((sum, device) => 
-          sum + device.currentUsage, 0
-        );
-
-        // Update weather occasionally
-        const shouldUpdateWeather = minute % 5 === 0; // Every 5 minutes
+        // Gradual weather changes for smoother transitions
+        const shouldUpdateWeather = minute % 2 === 0; // Every 2 minutes
         let newWeather = prev.weather;
         if (shouldUpdateWeather) {
+          const cloudVariation = (Math.random() - 0.5) * 0.05;
+          const tempVariation = (Math.random() - 0.5) * 0.2;
+          
           newWeather = {
             ...prev.weather,
-            cloudCover: Math.max(0, Math.min(1, prev.weather.cloudCover + (Math.random() - 0.5) * 0.1)),
-            temperature: prev.weather.temperature + (Math.random() - 0.5) * 0.5,
+            cloudCover: Math.max(0, Math.min(1, prev.weather.cloudCover + cloudVariation)),
+            temperature: Math.max(10, Math.min(35, prev.weather.temperature + tempVariation)),
+            condition: prev.weather.cloudCover > 0.7 ? 'cloudy' : 
+                      prev.weather.cloudCover > 0.4 ? 'partly-cloudy' : 'sunny'
           };
         }
 
         return {
           ...prev,
           currentTime: now,
-          weather: newWeather,
-          solarProduction,
-          totalConsumption
+          weather: newWeather
         };
       });
-    }, 10000); // Update every 10 seconds
+    }, 3000); // Update every 3 seconds for smoother flow
   }, []);
 
   const stopSimulation = useCallback(() => {
@@ -289,9 +317,31 @@ export function useSimulation() {
     setSimulationState(prev => ({ ...prev, isRunning: false }));
   }, []);
 
-  const setSpeedMultiplier = useCallback((speed: number) => {
-    setSimulationState(prev => ({ ...prev, speedMultiplier: speed }));
-  }, []);
+  const resetSimulation = useCallback(() => {
+    stopSimulation();
+    setSimulationState(prev => ({
+      ...prev,
+      currentTime: new Date(),
+      weather: {
+        temperature: 22,
+        cloudCover: 0.3,
+        windSpeed: 5,
+        humidity: 65,
+        condition: 'cloudy'
+      },
+      devices: prev.devices.map(device => ({
+        ...device,
+        status: 'off',
+        currentUsage: 0,
+        lastUsageUpdate: new Date().toISOString()
+      }))
+    }));
+    
+    // Auto-restart after reset for smooth demo experience
+    if (isDemoMode) {
+      setTimeout(startSimulation, 1000);
+    }
+  }, [stopSimulation, startSimulation, isDemoMode]);
 
   return {
     simulationState,
@@ -300,7 +350,7 @@ export function useSimulation() {
     removeDevice,
     startSimulation,
     stopSimulation,
-    setSpeedMultiplier,
+    resetSimulation,
     isDemoMode
   };
 }
