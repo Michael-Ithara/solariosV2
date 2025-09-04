@@ -66,7 +66,7 @@ export interface WeatherState {
   cloudCover: number; // 0-1
   windSpeed: number;
   humidity: number;
-  condition: 'sunny' | 'cloudy' | 'rainy' | 'stormy';
+  condition: 'sunny' | 'partly-cloudy' | 'cloudy' | 'rainy' | 'stormy';
 }
 
 export interface SimulationEvent {

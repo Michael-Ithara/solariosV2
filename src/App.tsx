@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppNavbar } from "@/components/layout/AppNavbar";
+import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import { useAuth } from "@/contexts/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import Appliances from "./pages/Appliances";
@@ -113,6 +114,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <SidebarProvider>
             <div className="min-h-screen w-full bg-background">
               <AppSidebar />
