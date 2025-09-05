@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
-  title: string;
+  title: ReactNode;
   value: string | number;
   unit?: string;
   icon: ReactNode;
@@ -41,7 +41,7 @@ export function MetricCard({
   return (
     <Card className={cn(variantStyles[variant], className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className="text-sm font-medium text-foreground">
           {title}
         </CardTitle>
         <div className={cn("h-5 w-5", iconStyles[variant])}>

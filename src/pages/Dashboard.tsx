@@ -229,7 +229,7 @@ export default function Dashboard() {
         <Card className="relative overflow-hidden border-energy-consumption/20 bg-gradient-to-br from-energy-consumption/10 via-energy-consumption/5 to-transparent">
           <div className="absolute inset-0 bg-gradient-to-br from-energy-consumption/5 to-transparent" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-            <CardTitle className="text-sm font-medium text-energy-consumption-foreground">Today's Cost</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Today's Cost</CardTitle>
             <div className="w-8 h-8 rounded-lg bg-energy-consumption/20 flex items-center justify-center">
               <DollarSign className="h-4 w-4 text-energy-consumption" />
             </div>
@@ -249,7 +249,7 @@ export default function Dashboard() {
         <Card className="relative overflow-hidden border-success/20 bg-gradient-to-br from-success/10 via-success/5 to-transparent">
           <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-            <CardTitle className="text-sm font-medium text-success-foreground">Monthly Savings</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Monthly Savings</CardTitle>
             <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
               <Target className="h-4 w-4 text-success" />
             </div>
@@ -269,7 +269,7 @@ export default function Dashboard() {
         <Card className="relative overflow-hidden border-energy-solar/20 bg-gradient-to-br from-energy-solar/10 via-energy-solar/5 to-transparent">
           <div className="absolute inset-0 bg-gradient-to-br from-energy-solar/5 to-transparent" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-            <CardTitle className="text-sm font-medium text-energy-solar-foreground">Solar Efficiency</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Solar Efficiency</CardTitle>
             <div className="w-8 h-8 rounded-lg bg-energy-solar/20 flex items-center justify-center">
               <Sun className="h-4 w-4 text-energy-solar" />
             </div>
@@ -289,7 +289,7 @@ export default function Dashboard() {
         <Card className="relative overflow-hidden border-energy-grid/20 bg-gradient-to-br from-energy-grid/10 via-energy-grid/5 to-transparent">
           <div className="absolute inset-0 bg-gradient-to-br from-energy-grid/5 to-transparent" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-            <CardTitle className="text-sm font-medium text-energy-grid-foreground">Grid Independence</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Grid Independence</CardTitle>
             <div className="w-8 h-8 rounded-lg bg-energy-grid/20 flex items-center justify-center">
               <Activity className="h-4 w-4 text-energy-grid" />
             </div>
@@ -320,6 +320,7 @@ export default function Dashboard() {
           unit="kW"
           icon={<Zap />}
           variant="consumption"
+          className="relative overflow-hidden border-energy-consumption/20 bg-gradient-to-br from-energy-consumption/10 via-energy-consumption/5 to-transparent"
           trend={{
             value: dashboardData.trends.power,
             label: "vs last hour"
@@ -331,6 +332,7 @@ export default function Dashboard() {
           unit="kW"
           icon={<Sun />}
           variant="solar"
+          className="relative overflow-hidden border-energy-solar/20 bg-gradient-to-br from-energy-solar/10 via-energy-solar/5 to-transparent"
           trend={{
             value: dashboardData.trends.solar,
             label: "vs yesterday"
@@ -342,6 +344,7 @@ export default function Dashboard() {
           unit="kW"
           icon={<Activity />}
           variant="grid"
+          className="relative overflow-hidden border-energy-grid/20 bg-gradient-to-br from-energy-grid/10 via-energy-grid/5 to-transparent"
           trend={{
             value: dashboardData.trends.grid,
             label: "vs last week"
@@ -352,6 +355,8 @@ export default function Dashboard() {
           value={dashboardData.batteryLevel}
           unit="%"
           icon={<Battery />}
+          variant="default"
+          className="relative overflow-hidden border-success/20 bg-gradient-to-br from-success/10 via-success/5 to-transparent"
           trend={{
             value: dashboardData.trends.battery,
             label: "charging"
