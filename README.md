@@ -1,73 +1,62 @@
-# Welcome to your Lovable project
+Solarios is a smart energy analytics platform designed to help households, businesses, and communities optimize energy efficiency and reduce costs.
+Using AI-powered analytics, IoT simulations, and gamification, Solarios transforms raw energy data into actionable insights for smarter consumption and a greener future.
 
-## Project info
+Key Features
 
-**URL**: https://lovable.dev/projects/387d9e37-e556-4bc5-acf5-07f88547c656
+Secure User Accounts with email/password + OAuth login via Supabase.
 
-## How can I edit this code?
+Weather-Aware Solar Simulation that predicts solar output in real time.
 
-There are several ways of editing your application.
+Interactive Energy Analytics Dashboard with clear, actionable data.
 
-**Use Lovable**
+AI Insights & Anomaly Detection to forecast usage patterns and detect inefficiencies.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/387d9e37-e556-4bc5-acf5-07f88547c656) and start prompting.
+Gamification Engine to drive user engagement and energy-saving behavior.
 
-Changes made via Lovable will be committed automatically to this repo.
+Demo Mode to let prospective customers explore the platform before signing up.
 
-**Use your preferred IDE**
+Enterprise-Ready Architecture with scalability in mind.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Tech Overview
+Layer	Technology
+Frontend	React, Vite, TypeScript, Tailwind, ShadCN UI
+Backend	Supabase (Auth, Database, RLS)
+AI/ML	Python Models for Forecasting & Anomaly Detection
+Simulations	IoT-like device simulation with Node.js & WebSockets
+Hosting	Vercel / Supabase / Netlify (Production-grade)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+For Developers & Partners
 
-Follow these steps:
+Private & Proprietary Software — Solarios is not open-source.
+Access is restricted to authorized developers, contributors, and business partners.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+To set up Solarios locally:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+git clone <PRIVATE_REPO_URL>
+cd solarios
+npm install
 npm run dev
-```
 
-**Edit a file directly in GitHub**
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+You’ll need a .env file with Supabase credentials and API keys.
 
-**Use GitHub Codespaces**
+Licensing
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Solarios is proprietary software owned by Michael Kihuyu.
 
-## What technologies are used for this project?
+No redistribution, resale, or deployment without explicit authorization.
 
-This project is built with:
+For partnership and licensing inquiries, please contact: mkihuy020@gmail.com
+.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+📈 Business Vision
 
-## How can I deploy this project?
+Solarios isn’t just an energy monitoring app — it’s a scalable platform designed for:
 
-Simply open [Lovable](https://lovable.dev/projects/387d9e37-e556-4bc5-acf5-07f88547c656) and click on Share -> Publish.
+Households seeking to cut costs with solar + grid optimization.
 
-## Can I connect a custom domain to my Lovable project?
+Businesses wanting analytics-driven energy management.
 
-Yes, you can!
+Communities & NGOs promoting sustainability initiatives.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Our mission is to empower energy users with actionable insights while making renewable energy accessible and efficient.
