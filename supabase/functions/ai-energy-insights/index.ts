@@ -1,11 +1,95 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as ort from "https://esm.sh/onnxruntime-web@1.18.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ONNX model lazy loader (global across invocations)
+let onnxSession: ort.InferenceSession | null = null;
+let onnxInitError: string | null = null;
+
+async function getOnnxSession(): Promise<ort.InferenceSession | null> {
+  if (onnxSession || onnxInitError) return onnxSession;
+  try {
+    // Configure wasm paths to CDN
+    // deno-lint-ignore no-explicit-any
+    (ort as any).env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/";
+    // Read model file from the function directory
+    const modelUrl = new URL('./daily_energy_model.onnx', import.meta.url);
+    const modelBytes = await Deno.readFile(modelUrl);
+    onnxSession = await ort.InferenceSession.create(modelBytes, { executionProviders: ['wasm'] });
+    console.log('ONNX model loaded:', onnxSession?.inputNames, onnxSession?.outputNames);
+  } catch (e) {
+    onnxInitError = (e as any)?.message ?? String(e);
+    console.error('Failed to initialize ONNX model:', onnxInitError);
+    onnxSession = null;
+  }
+  return onnxSession;
+}
+
+function buildFeatureVector(d: number, context: {
+  avgDailyConsumption: number;
+  avgDailySolar: number;
+  netUsage: number;
+  peakHour: number | null;
+  occupants: number;
+  homeSize: number | 'unknown';
+  solarCapacity: number;
+  batteryCapacity: number;
+  electricityRate: number;
+  growthRate: number;
+}): Float32Array {
+  const norm = (v: number, s: number) => (isFinite(v) ? v / (s || 1) : 0);
+  const features: number[] = [
+    context.avgDailyConsumption,
+    context.avgDailySolar,
+    context.netUsage,
+    norm(context.peakHour ?? 0, 23),
+    context.occupants,
+    typeof context.homeSize === 'number' ? norm(context.homeSize, 3000) : 0,
+    context.solarCapacity,
+    context.batteryCapacity,
+    context.electricityRate,
+    context.growthRate,
+    // temporal features
+    new Date().getMonth() / 11,
+    [0,6].includes(new Date().getDay()) ? 1 : 0,
+  ];
+  // Pad or trim to match expected length
+  if (features.length < d) {
+    while (features.length < d) features.push(0);
+  } else if (features.length > d) {
+    features.length = d;
+  }
+  return new Float32Array(features);
+}
+
+async function runOnnxPrediction(context: any): Promise<number | null> {
+  const session = await getOnnxSession();
+  if (!session) return null;
+  try {
+    const inputName = session.inputNames[0];
+    // Find feature dimension (assume [1, d] or [d])
+    const meta = session.inputMetadata[inputName as keyof typeof session.inputMetadata];
+    const dims = (meta as any)?.dimensions ?? [1, 12];
+    const d = Math.max(1, (dims.length === 1 ? dims[0] : dims[dims.length - 1]) || 12);
+    const inputTensor = new ort.Tensor('float32', buildFeatureVector(d, context), dims.length === 1 ? [d] : [1, d]);
+    const output = await session.run({ [inputName]: inputTensor });
+    const outName = session.outputNames[0];
+    const outTensor = output[outName];
+    // deno-lint-ignore no-explicit-any
+    const data: any = (outTensor as any)?.data ?? [];
+    const val = Array.isArray(data) ? data[0] : (typeof data?.[0] === 'number' ? data[0] : Number(data?.[0] ?? NaN));
+    return typeof val === 'number' && isFinite(val) ? val : null;
+  } catch (e) {
+    console.error('ONNX inference failed:', e);
+    return null;
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -132,6 +216,28 @@ serve(async (req) => {
     const confidence: 'high' | 'medium' | 'low' =
       Math.abs(growthRate) < 0.05 ? 'high' : Math.abs(growthRate) < 0.1 ? 'medium' : 'low';
 
+    // Try ONNX model for monthly consumption prediction (via daily prediction * 30)
+    let modelUsed: 'lovable-energy-v1' | 'onnx-daily-energy-v1' = 'lovable-energy-v1';
+    let nextMonthConsumptionFinal = nextMonthConsumption;
+    try {
+      const onnxDaily = await runOnnxPrediction({
+        avgDailyConsumption: analysisData.usage.avgDailyConsumption || 0,
+        avgDailySolar: analysisData.usage.avgDailySolar || 0,
+        netUsage: analysisData.usage.netUsage || 0,
+        peakHour: analysisData.usage.peakUsageHour,
+        occupants: analysisData.profile.occupants || 1,
+        homeSize: analysisData.profile.homeSize,
+        solarCapacity: analysisData.profile.solarCapacity || 0,
+        batteryCapacity: analysisData.profile.batteryCapacity || 0,
+        electricityRate: analysisData.profile.electricityRate || 0.12,
+        growthRate,
+      });
+      if (onnxDaily !== null) {
+        nextMonthConsumptionFinal = Math.max(0, parseFloat((onnxDaily * 30).toFixed(2)));
+        modelUsed = 'onnx-daily-energy-v1';
+      }
+    } catch (_) { /* no-op */ }
+    const nextMonthCostFinal = parseFloat((nextMonthConsumptionFinal * rate).toFixed(2));
     // Build insights
     const insights = [] as Array<{ title: string; description: string; category: 'usage_pattern' | 'efficiency' | 'cost' | 'solar' }>;    
     if (analysisData.usage.peakUsageHour !== null) {
@@ -145,7 +251,7 @@ serve(async (req) => {
 
     insights.push({
       title: 'Monthly energy cost estimate',
-      description: `Based on recent usage, your monthly cost is approximately ${nextMonthCost.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}.`,
+      description: `Based on recent usage, your monthly cost is approximately ${nextMonthCostFinal.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}.`,
       category: 'cost',
     });
 
@@ -259,8 +365,8 @@ serve(async (req) => {
       insights,
       recommendations,
       forecast: {
-        nextMonthConsumption,
-        nextMonthCost,
+        nextMonthConsumption: nextMonthConsumptionFinal,
+        nextMonthCost: nextMonthCostFinal,
         nextMonthSolar,
         confidence,
       },
@@ -304,7 +410,7 @@ serve(async (req) => {
           value: analysisResult.forecast.nextMonthConsumption,
           period_start: new Date().toISOString(),
           period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-           model: 'lovable-energy-v1'
+           model: modelUsed
         },
         {
           user_id: userId,
