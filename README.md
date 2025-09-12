@@ -3,7 +3,6 @@
 Solarios helps households, businesses, and communities **optimize energy usage** with AI-powered analytics, IoT simulations, and gamification.  
 We transform raw energy data into **actionable insights** — saving money, reducing waste, and making clean energy more accessible.  
 
-[Solarios Dashboard Screenshot] 
 <img width="1865" height="858" alt="Solarios-screenshot" src="https://github.com/user-attachments/assets/240debb3-4739-42d0-aebb-4783f78639a0" />
 
 
