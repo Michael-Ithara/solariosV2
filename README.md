@@ -3,7 +3,7 @@
 Solarios helps households, businesses, and communities **optimize energy usage** with AI-powered analytics, IoT simulations, and gamification.  
 We transform raw energy data into **actionable insights** — saving money, reducing waste, and making clean energy more accessible.  
 
-![Solarios Dashboard Screenshot]("https://github.com/Michael-Ithara/solariosV2/issues/1#issue-3409621152") <!-- Replace with actual screenshot URL -->
+![Solarios Dashboard Screenshot]("https://private-user-images.githubusercontent.com/130549065/488748815-8bd80d5b-ead9-4619-9561-e7018e99a84d.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTc2Njg5NzQsIm5iZiI6MTc1NzY2ODY3NCwicGF0aCI6Ii8xMzA1NDkwNjUvNDg4NzQ4ODE1LThiZDgwZDViLWVhZDktNDYxOS05NTYxLWU3MDE4ZTk5YTg0ZC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUwOTEyJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MDkxMlQwOTE3NTRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1lY2IwZWUxOThjMTkyYzk4Y2E5MTk3MTQzYTU5MDg2NGQ3NjE5NjJjYTJhNDJiNmZhNDE1ZTY5ODEzNjcxYThiJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.CMyAEmi60t5be2bpYpS3V5GKrIC5NgKEHU8R-27JgzM") <!-- Replace with actual screenshot URL -->
 
 ---
 
