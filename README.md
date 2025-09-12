@@ -1,62 +1,63 @@
-Solarios is a smart energy analytics platform designed to help households, businesses, and communities optimize energy efficiency and reduce costs.
-Using AI-powered analytics, IoT simulations, and gamification, Solarios transforms raw energy data into actionable insights for smarter consumption and a greener future.
+# ⚡ Solarios: AI-Powered Energy Analytics Platform  
 
-Key Features
+Solarios helps households, businesses, and communities **optimize energy usage** with AI-powered analytics, IoT simulations, and gamification.  
+We transform raw energy data into **actionable insights** — saving money, reducing waste, and making clean energy more accessible.  
 
-Secure User Accounts with email/password + OAuth login via Supabase.
+![Solarios Dashboard Screenshot]("C:\Users\Michael\OneDrive\Pictures\Screenshots\Solarios-screenshot.png") <!-- Replace with actual screenshot URL -->
 
-Weather-Aware Solar Simulation that predicts solar output in real time.
+---
 
-Interactive Energy Analytics Dashboard with clear, actionable data.
+## 🚀 Key Features
 
-AI Insights & Anomaly Detection to forecast usage patterns and detect inefficiencies.
+- 🔐 **Secure Authentication** — Email/password + OAuth login via Supabase.  
+- ☀️ **Weather-Aware Solar Simulation** — Predict solar output in real time.  
+- 📊 **Interactive Analytics Dashboard** — Clear, actionable usage data.  
+- 🤖 **AI Insights & Anomaly Detection** — Spot inefficiencies automatically.  
+- 🎮 **Gamification Engine** — Motivate users to save energy.  
+- 🧪 **Demo Mode** — Let prospective users explore before signing up.  
+- 🏢 **Enterprise-Ready Architecture** — Built for scale and flexibility.  
 
-Gamification Engine to drive user engagement and energy-saving behavior.
+---
 
-Demo Mode to let prospective customers explore the platform before signing up.
+## 🛠️ Tech Overview
 
-Enterprise-Ready Architecture with scalability in mind.
+| Layer         | Technology                                    |
+|--------------|----------------------------------------------|
+| **Frontend**  | React, Vite, TypeScript, Tailwind, ShadCN UI |
+| **Backend**   | Supabase (Auth, Database, Row-Level Security)|
+| **AI/ML**     | Python Models (Forecasting, Anomaly Detection), ONNX |
+| **Simulations**| Node.js & WebSockets (IoT-style device sim) |
+| **Hosting**   | Vercel, Supabase, Netlify                    |
 
-Tech Overview
-Layer	Technology
-Frontend	React, Vite, TypeScript, Tailwind, ShadCN UI
-Backend	Supabase (Auth, Database, RLS)
-AI/ML	Python Models for Forecasting & Anomaly Detection
-Simulations	IoT-like device simulation with Node.js & WebSockets
-Hosting	Vercel / Supabase / Netlify (Production-grade)
+---
 
-For Developers & Partners
+## 👨‍💻 Developer Setup
 
-Private & Proprietary Software — Solarios is not open-source.
-Access is restricted to authorized developers, contributors, and business partners.
+Clone the repository and get started locally:
 
-To set up Solarios locally:
-
+```bash
 git clone <PRIVATE_REPO_URL>
-cd solarios
+cd solariosV2
 npm install
 npm run dev
+```
 
-
-You’ll need a .env file with Supabase credentials and API keys.
-
-Licensing
+🔒 Licensing
 
 Solarios is proprietary software owned by Michael Kihuyu.
+No redistribution, resale, or deployment is permitted without explicit authorization.
 
-No redistribution, resale, or deployment without explicit authorization.
+📩 For business, licensing, or partnership inquiries:
+mkihuy020@gmail.com
 
-For partnership and licensing inquiries, please contact: mkihuy020@gmail.com
-.
+🌍 Vision & Impact
 
-📈 Business Vision
+Solarios isn’t just an energy tracker — it’s a sustainability platform:
 
-Solarios isn’t just an energy monitoring app — it’s a scalable platform designed for:
+🏠 Homes: Cut energy costs with solar + grid optimization.
 
-Households seeking to cut costs with solar + grid optimization.
+🏢 Businesses: Leverage analytics-driven energy management.
 
-Businesses wanting analytics-driven energy management.
+🌱 Communities & NGOs: Promote sustainability initiatives.
 
-Communities & NGOs promoting sustainability initiatives.
-
-Our mission is to empower energy users with actionable insights while making renewable energy accessible and efficient.
+Our mission is to empower energy users with actionable insights while making renewable energy adoption simple and effective.
