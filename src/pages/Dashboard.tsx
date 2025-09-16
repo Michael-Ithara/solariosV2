@@ -27,6 +27,7 @@ import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
 import { useRealTimeEnergyData } from "@/hooks/useRealTimeEnergyData";
+import { useAIInsights } from "@/hooks/useAIInsights";
 
 
 export default function Dashboard() {
@@ -46,6 +47,9 @@ export default function Dashboard() {
   
   // Real-time energy data for charts and live metrics
   const { energyData, metrics, isLoading: realtimeLoading } = useRealTimeEnergyData();
+  
+  // AI insights and recommendations
+  const { recommendations, forecast, isLoading: aiLoading, generateInsights } = useAIInsights();
   
   // Determine if this is demo mode
   const isDemoMode = location.pathname === '/demo' || useDemo;
@@ -571,35 +575,61 @@ export default function Dashboard() {
               <CardTitle className="text-lg flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary" />
                 Smart Recommendations
+                {aiLoading && (
+                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 relative">
-              <div className="p-4 rounded-lg bg-success/10 border border-success/20">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center mt-0.5">
-                    <DollarSign className="w-3 h-3 text-success" />
+              {recommendations.length > 0 ? (
+                recommendations.slice(0, 2).map((rec, index) => (
+                  <div key={rec.id || index} className={`p-4 rounded-lg border ${
+                    rec.priority === 'high' ? 'bg-success/10 border-success/20' :
+                    rec.priority === 'medium' ? 'bg-energy-solar/10 border-energy-solar/20' :
+                    'bg-primary/10 border-primary/20'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${
+                        rec.priority === 'high' ? 'bg-success/20' :
+                        rec.priority === 'medium' ? 'bg-energy-solar/20' :
+                        'bg-primary/20'
+                      }`}>
+                        <DollarSign className={`w-3 h-3 ${
+                          rec.priority === 'high' ? 'text-success' :
+                          rec.priority === 'medium' ? 'text-energy-solar' :
+                          'text-primary'
+                        }`} />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${
+                          rec.priority === 'high' ? 'text-success' :
+                          rec.priority === 'medium' ? 'text-energy-solar' :
+                          'text-primary'
+                        }`}>{rec.title}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {rec.description}
+                        </p>
+                        {rec.expected_savings_currency > 0 && (
+                          <p className="text-xs font-medium mt-1 text-success">
+                            Save {currencyLoading ? '...' : formatCurrency(rec.expected_savings_currency)} monthly
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-success">Optimal Battery Charging</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Save {currencyLoading ? '...' : formatCurrency(24)} monthly by charging during off-peak hours
-                    </p>
-                  </div>
+                ))
+              ) : (
+                <div className="p-6 text-center">
+                  <p className="text-sm text-muted-foreground mb-3">No AI recommendations yet</p>
+                  <button
+                    onClick={generateInsights}
+                    disabled={aiLoading}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {aiLoading ? 'Generating...' : 'Generate AI Insights'}
+                  </button>
                 </div>
-              </div>
-              <div className="p-4 rounded-lg bg-energy-solar/10 border border-energy-solar/20">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-energy-solar/20 flex items-center justify-center mt-0.5">
-                    <Sun className="w-3 h-3 text-energy-solar" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-energy-solar">Peak Solar Utilization</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Run high-energy appliances between 11 AM - 2 PM for maximum solar efficiency
-                    </p>
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -609,33 +639,59 @@ export default function Dashboard() {
             <CardHeader className="relative">
               <CardTitle className="text-lg flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-energy-grid" />
-                7-Day Forecast
+                Monthly Forecast
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 relative">
-              <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-warning">High Demand Alert</p>
-                    <p className="text-xs text-muted-foreground">Tomorrow 6-8 PM</p>
+              {forecast ? (
+                <>
+                  <div className="p-4 rounded-lg bg-info/10 border border-info/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-info">ONNX Model Prediction</p>
+                        <p className="text-xs text-muted-foreground">Next month consumption</p>
+                      </div>
+                      <span className="text-lg font-bold text-info">
+                        {Math.round(forecast.nextMonthConsumption)} kWh
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-lg font-bold text-warning">+23%</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-background border">
+                      <p className="text-xs text-muted-foreground">Predicted Cost</p>
+                      <p className="text-lg font-bold">
+                        {currencyLoading ? '...' : formatCurrency(forecast.nextMonthCost)}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background border">
+                      <p className="text-xs text-muted-foreground">Solar Generation</p>
+                      <p className="text-lg font-bold text-energy-solar">
+                        {Math.round(forecast.nextMonthSolar)} kWh
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      forecast.confidence === 'high' ? 'bg-success/20 text-success' :
+                      forecast.confidence === 'medium' ? 'bg-warning/20 text-warning' :
+                      'bg-error/20 text-error'
+                    }`}>
+                      {forecast.confidence} confidence
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="p-6 text-center">
+                  <p className="text-sm text-muted-foreground mb-3">No forecast available</p>
+                  <button
+                    onClick={generateInsights}
+                    disabled={aiLoading}
+                    className="px-4 py-2 bg-energy-grid text-white rounded-lg text-sm hover:bg-energy-grid/90 transition-colors disabled:opacity-50"
+                  >
+                    {aiLoading ? 'Generating...' : 'Generate Forecast'}
+                  </button>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg bg-background border">
-                  <p className="text-xs text-muted-foreground">Weekly Cost</p>
-                  <p className="text-lg font-bold">
-                    {currencyLoading ? '...' : formatCurrency(dashboardData.dailyConsumption * 0.12 * 7)}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-background border">
-                  <p className="text-xs text-muted-foreground">Potential Savings</p>
-                  <p className="text-lg font-bold text-success">
-                    {currencyLoading ? '...' : formatCurrency(12.50)}
-                  </p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
