@@ -21,6 +21,7 @@ import Landing from "./pages/Landing";
 import AuthCallback from "./pages/AuthCallback";
 import Auth from "./pages/Auth";
 import EnhancedDemo from "./pages/EnhancedDemo";
+import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
 
@@ -35,9 +36,21 @@ function AppRoutes() {
     );
   }
 
+  // Check if user needs onboarding (new users without completed setup)
+  const needsOnboarding = user && !user.user_metadata?.onboarding_completed;
+  
+  if (needsOnboarding) {
+    return (
+      <Routes>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Landing />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       
