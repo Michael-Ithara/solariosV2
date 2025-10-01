@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { CheckCircle, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
 import { LocationStep } from './steps/LocationStep';
 import { SmartMeterStep } from './steps/SmartMeterStep';
 import { SolarSystemStep } from './steps/SolarSystemStep';
@@ -103,12 +104,18 @@ export function OnboardingWizard() {
     
     setIsLoading(true);
     try {
+      // Update user metadata to mark onboarding as complete
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { onboarding_completed: true }
+      });
+      
+      if (metadataError) throw metadataError;
+
       // Update user profile with onboarding data
       await updateProfile({
         currency: onboardingData.location.currency,
         electricity_rate: onboardingData.location.electricityRate,
         solar_panel_capacity: onboardingData.solarSystem.capacity || 0,
-        // Mark onboarding as complete
         dashboard_layout: 'personalized',
       });
 
