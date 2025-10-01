@@ -14,8 +14,18 @@ export const currencyMap: Record<string, CurrencyInfo> = {
   'ES': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.25 },
   'IT': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.32 },
   'NL': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.35 },
-  'PT': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.27 },
-  'IE': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.29 },
+  'BE': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.27 },
+  'AT': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.22 },
+  'PT': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.21 },
+  'GR': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.19 },
+  'IE': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.28 },
+  'FI': { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.17 },
+  'SE': { code: 'SEK', symbol: 'kr', name: 'Swedish Krona', rate: 1.50 },
+  'NO': { code: 'NOK', symbol: 'kr', name: 'Norwegian Krone', rate: 1.20 },
+  'DK': { code: 'DKK', symbol: 'kr', name: 'Danish Krone', rate: 2.10 },
+  'PL': { code: 'PLN', symbol: 'zł', name: 'Polish Zloty', rate: 0.65 },
+  'CZ': { code: 'CZK', symbol: 'Kč', name: 'Czech Koruna', rate: 3.20 },
+  'CH': { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc', rate: 0.25 },
   
   // UK
   'GB': { code: 'GBP', symbol: '£', name: 'British Pound', rate: 0.25 },
@@ -23,48 +33,40 @@ export const currencyMap: Record<string, CurrencyInfo> = {
   // North America
   'US': { code: 'USD', symbol: '$', name: 'US Dollar', rate: 0.12 },
   'CA': { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', rate: 0.16 },
-  'MX': { code: 'MXN', symbol: '$', name: 'Mexican Peso', rate: 2.2 },
+  'MX': { code: 'MXN', symbol: '$', name: 'Mexican Peso', rate: 2.50 },
   
   // Asia Pacific
   'AU': { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rate: 0.18 },
+  'NZ': { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar', rate: 0.20 },
   'JP': { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rate: 18 },
   'IN': { code: 'INR', symbol: '₹', name: 'Indian Rupee', rate: 10 },
   'SG': { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', rate: 0.17 },
-  'CN': { code: 'CNY', symbol: '¥', name: 'Chinese Yuan', rate: 0.75 },
-  'KR': { code: 'KRW', symbol: '₩', name: 'South Korean Won', rate: 160 },
-  'NZ': { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar', rate: 0.22 },
-
+  'CN': { code: 'CNY', symbol: '¥', name: 'Chinese Yuan', rate: 0.65 },
+  'KR': { code: 'KRW', symbol: '₩', name: 'South Korean Won', rate: 140 },
+  'HK': { code: 'HKD', symbol: 'HK$', name: 'Hong Kong Dollar', rate: 0.95 },
+  'TW': { code: 'TWD', symbol: 'NT$', name: 'Taiwan Dollar', rate: 3.50 },
+  'MY': { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit', rate: 0.45 },
+  'TH': { code: 'THB', symbol: '฿', name: 'Thai Baht', rate: 4.20 },
+  'ID': { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah', rate: 1800 },
+  'PH': { code: 'PHP', symbol: '₱', name: 'Philippine Peso', rate: 6.50 },
+  'VN': { code: 'VND', symbol: '₫', name: 'Vietnamese Dong', rate: 2800 },
+  
+  // Middle East
+  'AE': { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham', rate: 0.35 },
+  'SA': { code: 'SAR', symbol: '﷼', name: 'Saudi Riyal', rate: 0.32 },
+  'IL': { code: 'ILS', symbol: '₪', name: 'Israeli Shekel', rate: 0.48 },
+  'TR': { code: 'TRY', symbol: '₺', name: 'Turkish Lira', rate: 2.50 },
+  
   // Africa
-  'NG': { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', rate: 120 },
-  'ZA': { code: 'ZAR', symbol: 'R', name: 'South African Rand', rate: 2.8 },
-  'GH': { code: 'GHS', symbol: '₵', name: 'Ghanaian Cedi', rate: 2.5 },
-  'KE': { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', rate: 25 },
-  'EG': { code: 'EGP', symbol: '£', name: 'Egyptian Pound', rate: 4.5 },
-  'TZ': { code: 'TZS', symbol: 'TSh', name: 'Tanzanian Shilling', rate: 300 },
-  'UG': { code: 'UGX', symbol: 'USh', name: 'Ugandan Shilling', rate: 350 },
-  'MA': { code: 'MAD', symbol: 'د.م.', name: 'Moroccan Dirham', rate: 1.0 },
-  'DZ': { code: 'DZD', symbol: 'د.ج', name: 'Algerian Dinar', rate: 20 },
-  'TN': { code: 'TND', symbol: 'د.ت', name: 'Tunisian Dinar', rate: 0.8 },
-  'RW': { code: 'RWF', symbol: 'FRw', name: 'Rwandan Franc', rate: 250 },
-  'ET': { code: 'ETB', symbol: 'Br', name: 'Ethiopian Birr', rate: 25 },
-  'ZM': { code: 'ZMW', symbol: 'K', name: 'Zambian Kwacha', rate: 3.2 },
-  'BW': { code: 'BWP', symbol: 'P', name: 'Botswana Pula', rate: 1.6 },
-  'MU': { code: 'MUR', symbol: '₨', name: 'Mauritian Rupee', rate: 5.2 },
-  // Currency unions
-  'SN': { code: 'XOF', symbol: 'CFA', name: 'West African CFA franc', rate: 90 },
-  'CI': { code: 'XOF', symbol: 'CFA', name: 'West African CFA franc', rate: 90 },
-  'ML': { code: 'XOF', symbol: 'CFA', name: 'West African CFA franc', rate: 90 },
-  'BF': { code: 'XOF', symbol: 'CFA', name: 'West African CFA franc', rate: 90 },
-  'BJ': { code: 'XOF', symbol: 'CFA', name: 'West African CFA franc', rate: 90 },
-  'TG': { code: 'XOF', symbol: 'CFA', name: 'West African CFA franc', rate: 90 },
-  'NE': { code: 'XOF', symbol: 'CFA', name: 'West African CFA franc', rate: 90 },
-  'GN': { code: 'GNF', symbol: 'FG', name: 'Guinean Franc', rate: 1200 },
-  'CM': { code: 'XAF', symbol: 'FCFA', name: 'Central African CFA franc', rate: 90 },
-  'GA': { code: 'XAF', symbol: 'FCFA', name: 'Central African CFA franc', rate: 90 },
-  'CG': { code: 'XAF', symbol: 'FCFA', name: 'Central African CFA franc', rate: 90 },
-  'TD': { code: 'XAF', symbol: 'FCFA', name: 'Central African CFA franc', rate: 90 },
-  'CF': { code: 'XAF', symbol: 'FCFA', name: 'Central African CFA franc', rate: 90 },
-  'GQ': { code: 'XAF', symbol: 'FCFA', name: 'Central African CFA franc', rate: 90 },
+  'ZA': { code: 'ZAR', symbol: 'R', name: 'South African Rand', rate: 1.80 },
+  'NG': { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', rate: 65 },
+  'EG': { code: 'EGP', symbol: '£', name: 'Egyptian Pound', rate: 3.50 },
+  
+  // South America
+  'BR': { code: 'BRL', symbol: 'R$', name: 'Brazilian Real', rate: 0.65 },
+  'AR': { code: 'ARS', symbol: '$', name: 'Argentine Peso', rate: 75 },
+  'CL': { code: 'CLP', symbol: '$', name: 'Chilean Peso', rate: 95 },
+  'CO': { code: 'COP', symbol: '$', name: 'Colombian Peso', rate: 550 },
   
   // Default fallback
   'DEFAULT': { code: 'USD', symbol: '$', name: 'US Dollar', rate: 0.12 }
@@ -130,21 +132,35 @@ export function useCurrency() {
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const timezoneToCountry: Record<string, string> = {
-        'America/New_York': 'US',
-        'America/Chicago': 'US',
-        'America/Denver': 'US',
-        'America/Los_Angeles': 'US',
-        'America/Toronto': 'CA',
-        'Europe/London': 'GB',
-        'Europe/Paris': 'FR',
-        'Europe/Berlin': 'DE',
-        'Europe/Madrid': 'ES',
-        'Europe/Rome': 'IT',
-        'Europe/Amsterdam': 'NL',
-        'Asia/Tokyo': 'JP',
-        'Asia/Kolkata': 'IN',
-        'Asia/Singapore': 'SG',
-        'Australia/Sydney': 'AU',
+        // Americas
+        'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US', 
+        'America/Los_Angeles': 'US', 'America/Phoenix': 'US', 'America/Anchorage': 'US',
+        'America/Toronto': 'CA', 'America/Vancouver': 'CA', 'America/Montreal': 'CA',
+        'America/Mexico_City': 'MX', 'America/Sao_Paulo': 'BR', 'America/Buenos_Aires': 'AR',
+        'America/Santiago': 'CL', 'America/Bogota': 'CO',
+        
+        // Europe
+        'Europe/London': 'GB', 'Europe/Paris': 'FR', 'Europe/Berlin': 'DE',
+        'Europe/Madrid': 'ES', 'Europe/Rome': 'IT', 'Europe/Amsterdam': 'NL',
+        'Europe/Brussels': 'BE', 'Europe/Vienna': 'AT', 'Europe/Lisbon': 'PT',
+        'Europe/Athens': 'GR', 'Europe/Dublin': 'IE', 'Europe/Helsinki': 'FI',
+        'Europe/Stockholm': 'SE', 'Europe/Oslo': 'NO', 'Europe/Copenhagen': 'DK',
+        'Europe/Warsaw': 'PL', 'Europe/Prague': 'CZ', 'Europe/Zurich': 'CH',
+        'Europe/Istanbul': 'TR',
+        
+        // Asia
+        'Asia/Tokyo': 'JP', 'Asia/Seoul': 'KR', 'Asia/Shanghai': 'CN',
+        'Asia/Hong_Kong': 'HK', 'Asia/Singapore': 'SG', 'Asia/Kolkata': 'IN',
+        'Asia/Bangkok': 'TH', 'Asia/Jakarta': 'ID', 'Asia/Manila': 'PH',
+        'Asia/Taipei': 'TW', 'Asia/Kuala_Lumpur': 'MY', 'Asia/Ho_Chi_Minh': 'VN',
+        'Asia/Dubai': 'AE', 'Asia/Riyadh': 'SA', 'Asia/Jerusalem': 'IL',
+        
+        // Oceania
+        'Australia/Sydney': 'AU', 'Australia/Melbourne': 'AU', 'Australia/Brisbane': 'AU',
+        'Pacific/Auckland': 'NZ',
+        
+        // Africa
+        'Africa/Johannesburg': 'ZA', 'Africa/Lagos': 'NG', 'Africa/Cairo': 'EG',
       };
       
       return timezoneToCountry[timezone] || null;
