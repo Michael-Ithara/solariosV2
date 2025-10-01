@@ -44,9 +44,13 @@ export const authService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    // Determine user role (admin emails can be configured)
-    const adminEmails = ['admin@solarios.com', 'admin@example.com'];
-    const role: UserRole = adminEmails.includes(user.email || '') ? 'admin' : 'user';
+    // Determine user role from metadata with fallback
+    const metaRole = (user.user_metadata as any)?.role as UserRole | undefined;
+    let role: UserRole = metaRole || 'user';
+    if (!metaRole) {
+      const adminEmails = ['admin@solarios.com', 'admin@example.com'];
+      role = adminEmails.includes(user.email || '') ? 'admin' : 'user';
+    }
 
     return { ...user, role };
   },
@@ -54,7 +58,8 @@ export const authService = {
   // Get user role
   getUserRole(user: AuthUser | null): UserRole {
     if (!user) return 'guest';
-    return user.role || 'user';
+    const metaRole = (user.user_metadata as any)?.role as UserRole | undefined;
+    return user.role || metaRole || 'user';
   },
 
   // Check if user has permission

@@ -46,7 +46,9 @@ export default function Appliances() {
     error, 
     useDemo, 
     toggleAppliance, 
-    addAppliance 
+    addAppliance,
+    updateAppliance,
+    deleteAppliance 
   } = useSupabaseData();
   
   // Determine if this is demo mode
@@ -60,8 +62,18 @@ export default function Appliances() {
     toggleAppliance(id);
   };
 
-  const handleApplianceSettings = (id: string) => {
-    console.log(`Settings for appliance ${id}`);
+  const handleApplianceSettings = async (id: string) => {
+    const power = prompt('Update power rating (W):');
+    if (power === null) return;
+    const parsed = parseInt(power);
+    if (!isNaN(parsed)) {
+      await updateAppliance(id, { power_rating_w: parsed });
+    }
+  };
+
+  const handleDeleteAppliance = async (id: string) => {
+    if (!confirm('Delete this appliance?')) return;
+    await deleteAppliance(id);
   };
 
   const handleAddAppliance = async () => {
@@ -229,6 +241,17 @@ export default function Appliances() {
           />
         ))}
       </div>
+
+      {!isDemoMode && (
+        <div className="grid gap-2 md:grid-cols-3">
+          {appliances.map((a) => (
+            <div key={`actions-${a.id}`} className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleApplianceSettings(a.id)}>Edit</Button>
+              <Button variant="destructive" size="sm" onClick={() => handleDeleteAppliance(a.id)}>Delete</Button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-4">

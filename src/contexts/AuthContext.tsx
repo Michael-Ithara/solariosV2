@@ -28,8 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(session);
     
     if (session?.user) {
-      const adminEmails = ['admin@solarios.com', 'admin@example.com'];
-      const userRole = adminEmails.includes(session.user.email || '') ? 'admin' : 'user';
+      const metaRole = (session.user.user_metadata as any)?.role as UserRole | undefined;
+      const fallbackAdmin = ['admin@solarios.com', 'admin@example.com'];
+      const userRole: UserRole = metaRole || (fallbackAdmin.includes(session.user.email || '') ? 'admin' : 'user');
       setUser({ ...session.user, role: userRole });
     } else {
       setUser(null);

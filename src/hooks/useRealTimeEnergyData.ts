@@ -183,6 +183,19 @@ export function useRealTimeEnergyData() {
           fetchData(); // Refetch data when appliances change
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'alerts',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Alerts update:', payload);
+          fetchData();
+        }
+      )
       .subscribe();
 
     return () => {

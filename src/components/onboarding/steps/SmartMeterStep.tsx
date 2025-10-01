@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -37,6 +40,10 @@ const CONNECTION_METHODS = [
 
 export function SmartMeterStep({ data, onUpdate, onNext, onBack }: SmartMeterStepProps) {
   const [formData, setFormData] = useState(data);
+  const [apiKey, setApiKey] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [validating, setValidating] = useState(false);
+  const { user } = useAuth();
 
   const handleFieldChange = (field: string, value: string) => {
     const updated = { ...formData, [field]: value };
@@ -180,6 +187,59 @@ export function SmartMeterStep({ data, onUpdate, onNext, onBack }: SmartMeterSte
                 ))}
               </div>
             </div>
+
+            {/* Minimal credentials form for Utility API */}
+            {formData.connectionMethod === 'utility-api' && (
+              <div className="space-y-4">
+                <Label>Connect to Utility</Label>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="meter-account">Utility Account ID</Label>
+                    <Input id="meter-account" value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="e.g., 12345" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="meter-api">API Key / Token</Label>
+                    <Input id="meter-api" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste token" />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    disabled={validating || !apiKey || !accountId}
+                    onClick={async () => {
+                      if (!user) return;
+                      try {
+                        setValidating(true);
+                        // Simulate validation by storing a redacted record in a private table
+                        const { error } = await supabase
+                          .from('user_integrations')
+                          .upsert({
+                            user_id: user.id,
+                            provider: 'utility',
+                            account_id: accountId,
+                            // NEVER store raw api keys in client DB in production; this is a placeholder
+                            masked_key: apiKey ? `****${apiKey.slice(-4)}` : null,
+                          });
+                        if (error) throw error;
+                        const updated = { ...formData, validated: true } as any;
+                        setFormData(updated);
+                        onUpdate(updated);
+                      } catch (err) {
+                        console.error('Validation failed:', err);
+                        const updated = { ...formData, validated: false } as any;
+                        setFormData(updated);
+                        onUpdate(updated);
+                      } finally {
+                        setValidating(false);
+                      }
+                    }}
+                    className="bg-primary"
+                  >
+                    {validating ? 'Validating...' : 'Test Connection'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -15,8 +15,8 @@ export function useSupabaseData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Determine if we should use demo data based on route and auth state
-  const useDemo = location.pathname === '/demo' || (role === 'guest' && !user);
+  // Use demo data only on explicit demo route; otherwise prefer user tables
+  const useDemo = location.pathname === '/demo';
 
   useEffect(() => {
     fetchData();
@@ -46,6 +46,16 @@ export function useSupabaseData() {
         setAchievements(achievementsRes.data || []);
       } else {
         // Fetch user-specific data
+        if (!user) {
+          setAppliances([]);
+          setEnergyLogs([]);
+          setSolarData([]);
+          setAlerts([]);
+          setUserPoints(null);
+          setAchievements([]);
+          setLoading(false);
+          return;
+        }
         const [appliancesRes, energyRes, solarRes, alertsRes, pointsRes, achievementsRes, userAchievementsRes] = await Promise.all([
           supabase.from('appliances').select('*').eq('user_id', user.id),
           supabase.from('energy_logs').select('*').eq('user_id', user.id).order('logged_at', { ascending: false }).limit(100),
@@ -160,6 +170,60 @@ export function useSupabaseData() {
     }
   };
 
+  const updateAppliance = async (applianceId: string, updates: any) => {
+    if (useDemo) {
+      setAppliances(prev => prev.map(app => 
+        app.id === applianceId 
+          ? { ...app, ...updates }
+          : app
+      ));
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('appliances')
+        .update(updates)
+        .eq('id', applianceId)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAppliances(prev => prev.map(app => 
+        app.id === applianceId 
+          ? data
+          : app
+      ));
+    } catch (err) {
+      console.error('Error updating appliance:', err);
+      setError(err.message);
+    }
+  };
+
+  const deleteAppliance = async (applianceId: string) => {
+    if (useDemo) {
+      setAppliances(prev => prev.filter(app => app.id !== applianceId));
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('appliances')
+        .delete()
+        .eq('id', applianceId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setAppliances(prev => prev.filter(app => app.id !== applianceId));
+    } catch (err) {
+      console.error('Error deleting appliance:', err);
+      setError(err.message);
+    }
+  };
+
   return {
     appliances,
     energyLogs,
@@ -172,6 +236,8 @@ export function useSupabaseData() {
     useDemo,
     toggleAppliance,
     addAppliance,
+    updateAppliance,
+    deleteAppliance,
     refetch: fetchData
   };
 }

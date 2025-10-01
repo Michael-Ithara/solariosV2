@@ -28,12 +28,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
 import { useRealTimeEnergyData } from "@/hooks/useRealTimeEnergyData";
 import { useAIInsights } from "@/hooks/useAIInsights";
+import { useProfile } from "@/hooks/useProfile";
+import { useSmartMeterData } from "@/hooks/useSmartMeterData";
 
 
 export default function Dashboard() {
   const { currency, formatCurrency, convertFromUSD, isLoading: currencyLoading } = useCurrency();
   const { role } = useAuth();
   const location = useLocation();
+  const { profile } = useProfile();
+  const { graph, isLoading: meterLoading } = useSmartMeterData();
   const { 
     appliances, 
     energyLogs, 
@@ -55,6 +59,7 @@ export default function Dashboard() {
   const isDemoMode = location.pathname === '/demo' || useDemo;
   // Calculate dashboard metrics from real data or real-time metrics
   const calculateMetrics = () => {
+    const rate = profile?.electricity_rate ?? 0.12;
     // Use real-time metrics if available and not in demo mode
     if (!isDemoMode && !realtimeLoading && metrics.lastUpdate) {
       const dailyConsumption = energyLogs
@@ -80,7 +85,7 @@ export default function Dashboard() {
         batteryLevel: metrics.batteryLevel,
         dailyConsumption,
         dailySolar,
-        monthlySavings: convertFromUSD(156), // Mock for now
+        monthlySavings: Math.max(0, Math.min(dailySolar, dailyConsumption) * rate * 30),
         trends: {
           power: 12,
           solar: 8,
@@ -90,10 +95,11 @@ export default function Dashboard() {
       };
     }
 
-    // Fallback to static calculation
-    const currentPower = appliances
-      .filter(a => a.status === 'on')
-      .reduce((sum, a) => sum + (a.power_rating_w || 0), 0) / 1000; // Convert to kW
+    // Fallback to static calculation (prefer smart meter facade when available)
+    const hasSmartMeter = !!graph.meter && graph.devices.length > 0;
+    const currentPower = hasSmartMeter
+      ? graph.devices.filter(d => d.status === 'on').reduce((sum, d) => sum + (d.power_rating_w || 0), 0) / 1000
+      : appliances.filter(a => a.status === 'on').reduce((sum, a) => sum + (a.power_rating_w || 0), 0) / 1000;
     
     const recentSolar = solarData.slice(0, 1)[0];
     const solarProduction = recentSolar ? recentSolar.generation_kwh : 0;
@@ -121,7 +127,7 @@ export default function Dashboard() {
       batteryLevel: 85, // Mock for now
       dailyConsumption,
       dailySolar,
-      monthlySavings: convertFromUSD(156), // Mock for now
+      monthlySavings: Math.max(0, Math.min(dailySolar, dailyConsumption) * (profile?.electricity_rate ?? 0.12) * 30),
       trends: {
         power: 12,
         solar: 8,
@@ -140,6 +146,8 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  const showNoDevicesPrompt = !isDemoMode && appliances.length === 0;
 
   return (
     <div className="flex-1 space-y-8 p-6 bg-gradient-to-br from-background via-background to-muted/20">
@@ -181,7 +189,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Demo Mode Notice */}
+      {/* Notices */}
       {isDemoMode && (
         <AlertComponent className="border-primary/20 bg-primary/5">
           <AlertTriangle className="h-4 w-4 text-primary" />
@@ -190,6 +198,18 @@ export default function Dashboard() {
               ? "You're viewing demo data. This showcases the app's capabilities with sample energy monitoring data."
               : "You're viewing demo data. Sign in to connect your real energy monitoring devices and track your actual usage."
             }
+          </AlertDescription>
+        </AlertComponent>
+      )}
+      {showNoDevicesPrompt && (
+        <AlertComponent className="border-warning/20 bg-warning/5">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>No devices found. Add appliances or re-run onboarding to get started.</span>
+            <div className="flex gap-2">
+              <a href="/appliances" className="px-3 py-1 text-xs rounded border">Add Appliances</a>
+              <a href="/onboarding" className="px-3 py-1 text-xs rounded border">Re-run Onboarding</a>
+            </div>
           </AlertDescription>
         </AlertComponent>
       )}
@@ -240,7 +260,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="relative">
             <div className="text-2xl font-bold text-energy-consumption">
-              {currencyLoading ? '...' : formatCurrency(dashboardData.currentPower * 0.12 * 24)}
+              {currencyLoading ? '...' : formatCurrency(dashboardData.currentPower * (profile?.electricity_rate ?? 0.12) * 24)}
             </div>
             <div className="flex items-center gap-1 mt-1">
               <ArrowUpRight className="w-3 h-3 text-energy-consumption" />
@@ -437,7 +457,7 @@ export default function Dashboard() {
                   <span className="text-sm font-medium">Cost Saved</span>
                 </div>
                 <span className="text-sm font-bold text-success">
-                  {currencyLoading ? '...' : formatCurrency(Math.abs(dashboardData.solarProduction - dashboardData.currentPower) * 0.12)}
+                  {currencyLoading ? '...' : formatCurrency(Math.abs(dashboardData.solarProduction - dashboardData.currentPower) * (profile?.electricity_rate ?? 0.12))}
                 </span>
               </div>
             </CardContent>
@@ -496,13 +516,13 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Today's Cost</span>
               <span className="text-lg font-bold text-energy-consumption">
-                {currencyLoading ? '...' : formatCurrency(dashboardData.dailyConsumption * 0.12)}
+                {currencyLoading ? '...' : formatCurrency(dashboardData.dailyConsumption * (profile?.electricity_rate ?? 0.12))}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Monthly Proj.</span>
               <span className="text-lg font-bold">
-                {currencyLoading ? '...' : formatCurrency(dashboardData.dailyConsumption * 0.12 * 30)}
+                {currencyLoading ? '...' : formatCurrency(dashboardData.dailyConsumption * (profile?.electricity_rate ?? 0.12) * 30)}
               </span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-energy-consumption/20">

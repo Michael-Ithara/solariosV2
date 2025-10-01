@@ -5,7 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, DollarSign, Zap } from 'lucide-react';
-import { useCurrency } from '@/hooks/useCurrency';
+import { useCurrency, getCurrencyInfo } from '@/hooks/useCurrency';
+import timezones from '@/lib/timezones.json';
+import countries from '@/lib/countries.json';
 
 interface LocationStepProps {
   data: {
@@ -41,12 +43,8 @@ export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
       setFormData(prev => ({
         ...prev,
         currency: currency.code,
-        country: currency.name.includes('States') ? 'US' : 
-                currency.name.includes('Canada') ? 'CA' :
-                currency.name.includes('Kingdom') ? 'GB' :
-                currency.name.includes('Germany') ? 'DE' :
-                currency.name.includes('Australia') ? 'AU' : 'US',
-        electricityRate: COMMON_RATES[currency.code as keyof typeof COMMON_RATES] || 0.12,
+        country: countries.find(c => c.code === (currency.code === 'USD' ? 'US' : (currency.code === 'CAD' ? 'CA' : (currency.code === 'GBP' ? 'GB' : 'US'))))?.code || 'US',
+        electricityRate: currency.rate,
       }));
     }
   }, [currency, formData.country]);
@@ -83,22 +81,20 @@ export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
             <Label htmlFor="country">Country/Region</Label>
             <Select
               value={formData.country}
-              onValueChange={(value) => handleFieldChange('country', value)}
+              onValueChange={(value) => {
+                const currencyInfo = getCurrencyInfo(value);
+                const next = { ...formData, country: value, currency: currencyInfo.code, electricityRate: currencyInfo.rate };
+                setFormData(next);
+                onUpdate(next);
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select your country" />
               </SelectTrigger>
-              <SelectContent className="bg-background border border-border">
-                <SelectItem value="US">United States</SelectItem>
-                <SelectItem value="CA">Canada</SelectItem>
-                <SelectItem value="GB">United Kingdom</SelectItem>
-                <SelectItem value="DE">Germany</SelectItem>
-                <SelectItem value="AU">Australia</SelectItem>
-                <SelectItem value="JP">Japan</SelectItem>
-                <SelectItem value="FR">France</SelectItem>
-                <SelectItem value="ES">Spain</SelectItem>
-                <SelectItem value="IT">Italy</SelectItem>
-                <SelectItem value="NL">Netherlands</SelectItem>
+              <SelectContent className="bg-background border border-border max-h-64 overflow-y-auto">
+                {countries.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -122,14 +118,10 @@ export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
               <SelectTrigger>
                 <SelectValue placeholder="Auto-detected timezone" />
               </SelectTrigger>
-              <SelectContent className="bg-background border border-border">
-                <SelectItem value="America/New_York">Eastern Time (UTC-5)</SelectItem>
-                <SelectItem value="America/Chicago">Central Time (UTC-6)</SelectItem>
-                <SelectItem value="America/Denver">Mountain Time (UTC-7)</SelectItem>
-                <SelectItem value="America/Los_Angeles">Pacific Time (UTC-8)</SelectItem>
-                <SelectItem value="Europe/London">GMT (UTC+0)</SelectItem>
-                <SelectItem value="Europe/Berlin">Central European Time (UTC+1)</SelectItem>
-                <SelectItem value="Australia/Sydney">Australian Eastern Time (UTC+10)</SelectItem>
+              <SelectContent className="bg-background border border-border max-h-64 overflow-y-auto">
+                {timezones.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
