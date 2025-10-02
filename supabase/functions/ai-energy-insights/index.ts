@@ -160,7 +160,7 @@ serve(async (req) => {
       return acc;
     }, {} as Record<number, number>);
     
-    const peakHour = Object.entries(hourlyUsage).sort(([,a], [,b]) => b - a)[0];
+    const peakHour = Object.entries(hourlyUsage).sort(([,a], [,b]) => (b as number) - (a as number))[0];
     
     // Appliance efficiency analysis
     const applianceUsage = appliances.map(app => ({
@@ -183,7 +183,7 @@ serve(async (req) => {
         avgDailySolar: parseFloat(avgDailySolar.toFixed(2)),
         netUsage: parseFloat(netUsage.toFixed(2)),
         peakUsageHour: peakHour ? parseInt(peakHour[0]) : null,
-        peakUsageAmount: peakHour ? parseFloat(peakHour[1].toFixed(2)) : null
+        peakUsageAmount: peakHour ? parseFloat((peakHour[1] as number).toFixed(2)) : null
       },
       appliances: applianceUsage,
       monthlyCost: parseFloat((totalConsumption * (profile?.electricity_rate || 0.12)).toFixed(2))
@@ -437,7 +437,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in ai-energy-insights function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: (error as Error).message,
       success: false 
     }), {
       status: 500,
