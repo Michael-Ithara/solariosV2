@@ -210,16 +210,16 @@ export function SmartMeterStep({ data, onUpdate, onNext, onBack }: SmartMeterSte
                       if (!user) return;
                       try {
                         setValidating(true);
-                        // Simulate validation by storing a redacted record in a private table
-                        const { error } = await supabase
-                          .from('user_integrations')
-                          .upsert({
-                            user_id: user.id,
-                            provider: 'utility',
-                            account_id: accountId,
-                            // NEVER store raw api keys in client DB in production; this is a placeholder
-                            masked_key: apiKey ? `****${apiKey.slice(-4)}` : null,
-                          });
+                        // Simulate validation - in production, this would be done securely via edge function
+                        // For now, we'll just update user metadata
+                        const { error } = await supabase.auth.updateUser({
+                          data: {
+                            meterConnected: true,
+                            meterBrand: formData.brand,
+                            meterMethod: formData.connectionMethod,
+                            masked_key: apiKey ? `****${apiKey.slice(-4)}` : null
+                          }
+                        });
                         if (error) throw error;
                         const updated = { ...formData, validated: true } as any;
                         setFormData(updated);

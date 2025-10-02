@@ -6,7 +6,6 @@ import { CheckCircle, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
-import { supabase } from '@/integrations/supabase/client';
 import { LocationStep } from './steps/LocationStep';
 import { SmartMeterStep } from './steps/SmartMeterStep';
 import { SolarSystemStep } from './steps/SolarSystemStep';
@@ -223,14 +222,14 @@ export function OnboardingWizard() {
               user_id: user.id,
               name: item.meta!.name,
               power_rating_w: item.meta!.power,
-              status: 'off',
+              status: 'off' as const,
               total_kwh: 0
             })),
           ...custom.map(dev => ({
             user_id: user.id,
             name: dev.name,
             power_rating_w: dev.powerRating,
-            status: 'off',
+            status: 'off' as const,
             total_kwh: 0
           }))
         ];
@@ -251,9 +250,38 @@ export function OnboardingWizard() {
         console.error('Failed to persist onboarding devices:', e);
       }
 
+      // Save all onboarding data to profiles table
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            country: onboardingData.location.country,
+            city: onboardingData.location.city,
+            timezone: onboardingData.location.timezone,
+            currency: onboardingData.location.currency,
+            electricity_rate: onboardingData.location.electricityRate,
+            smart_meter_type: onboardingData.smartMeter.type,
+            smart_meter_brand: onboardingData.smartMeter.brand,
+            smart_meter_model: onboardingData.smartMeter.model,
+            smart_meter_connection_method: onboardingData.smartMeter.connectionMethod,
+            has_solar_system: onboardingData.solarSystem.hasSystem,
+            solar_panel_capacity: onboardingData.solarSystem.capacity,
+            solar_panel_count: onboardingData.solarSystem.panelCount,
+            solar_inverter_brand: onboardingData.solarSystem.inverterBrand,
+            solar_installation_date: onboardingData.solarSystem.installDate
+          })
+          .eq('user_id', user.id);
+      } catch (profileErr) {
+        console.error('Failed to save profile data:', profileErr);
+      }
+
       // Mark onboarding as complete in user metadata
       const { data: updatedUser, error: metaError } = await supabase.auth.updateUser({
-        data: { onboardingComplete: true, onboarding_version: 1 }
+        data: { 
+          onboardingComplete: true,
+          onboarding_completed: true,
+          onboarding_version: 1 
+        }
       });
       if (metaError) {
         console.error('Failed to set onboardingComplete metadata:', metaError);

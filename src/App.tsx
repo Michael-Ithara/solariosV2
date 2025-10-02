@@ -21,7 +21,6 @@ import Landing from "./pages/Landing";
 import AuthCallback from "./pages/AuthCallback";
 import Auth from "./pages/Auth";
 import EnhancedDemo from "./pages/EnhancedDemo";
-import SimpleDemo from "./pages/SimpleDemo";
 import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
