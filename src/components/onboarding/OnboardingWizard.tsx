@@ -275,6 +275,27 @@ export function OnboardingWizard() {
         console.error('Failed to save profile data:', profileErr);
       }
 
+      // Initialize simulation data - create initial real_time_energy_data entry
+      try {
+        const now = new Date().toISOString();
+        const deviceCount = (onboardingData.devices.selectedDevices?.length || 0) + (onboardingData.devices.customDevices?.length || 0);
+        await supabase.from('real_time_energy_data').insert({
+          user_id: user.id,
+          timestamp: now,
+          consumption_kw: 0,
+          solar_production_kw: 0,
+          grid_usage_kw: 0,
+          battery_level_percent: 0,
+          active_devices: 0,
+          total_devices: deviceCount,
+          temperature_celsius: 20,
+          cloud_cover_percent: 50,
+          weather_condition: 'partly-cloudy'
+        });
+      } catch (simErr) {
+        console.error('Failed to initialize simulation data:', simErr);
+      }
+
       // Mark onboarding as complete in user metadata
       const { data: updatedUser, error: metaError } = await supabase.auth.updateUser({
         data: { 

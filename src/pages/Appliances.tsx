@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useAutoSimulation } from "@/hooks/useAutoSimulation";
 
 // Icon mapping for appliances
 const getApplianceIcon = (name: string) => {
@@ -53,6 +54,9 @@ export default function Appliances() {
   
   // Determine if this is demo mode
   const isDemoMode = location.pathname === '/demo' || useDemo;
+  
+  // Auto-start simulation for authenticated users
+  useAutoSimulation();
   
   const [newApplianceName, setNewApplianceName] = useState('');
   const [newAppliancePower, setNewAppliancePower] = useState('');

@@ -30,6 +30,7 @@ import { useRealTimeEnergyData } from "@/hooks/useRealTimeEnergyData";
 import { useAIInsights } from "@/hooks/useAIInsights";
 import { useProfile } from "@/hooks/useProfile";
 import { useSmartMeterData } from "@/hooks/useSmartMeterData";
+import { useAutoSimulation } from "@/hooks/useAutoSimulation";
 
 
 export default function Dashboard() {
@@ -54,6 +55,9 @@ export default function Dashboard() {
   
   // AI insights and recommendations
   const { recommendations, forecast, isLoading: aiLoading, generateInsights } = useAIInsights();
+  
+  // Auto-start simulation for authenticated users
+  useAutoSimulation();
   
   // Determine if this is demo mode
   const isDemoMode = location.pathname === '/demo' || useDemo;
