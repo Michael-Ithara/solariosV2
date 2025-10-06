@@ -194,6 +194,7 @@ export function OnboardingWizard() {
         electricity_rate: onboardingData.location.electricityRate,
         solar_panel_capacity: onboardingData.solarSystem.capacity || 0,
         dashboard_layout: 'personalized',
+        data_source: 'simulation', // Set to simulation mode after onboarding
       });
 
       // If user connected a real smart meter and validated, persist minimal metadata

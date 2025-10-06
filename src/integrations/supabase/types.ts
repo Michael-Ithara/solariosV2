@@ -896,6 +896,7 @@ export type Database = {
           created_at: string
           currency: string
           dashboard_layout: string
+          data_source: string
           display_name: string | null
           electricity_rate: number
           email_notifications: boolean
@@ -927,6 +928,7 @@ export type Database = {
           created_at?: string
           currency?: string
           dashboard_layout?: string
+          data_source?: string
           display_name?: string | null
           electricity_rate?: number
           email_notifications?: boolean
@@ -958,6 +960,7 @@ export type Database = {
           created_at?: string
           currency?: string
           dashboard_layout?: string
+          data_source?: string
           display_name?: string | null
           electricity_rate?: number
           email_notifications?: boolean

@@ -6,6 +6,7 @@ import { useProfile } from './useProfile';
 /**
  * Auto-starts and manages the user's personalized energy simulation
  * This runs continuously in the background for authenticated users
+ * Respects the data_source field in profiles: 'demo', 'simulation', or 'iot'
  */
 export function useAutoSimulation() {
   const { user } = useAuth();
@@ -15,6 +16,15 @@ export function useAutoSimulation() {
 
   useEffect(() => {
     if (!user || !profile) return;
+
+    // Only run simulation if data_source is 'simulation'
+    // For 'demo', data comes from demo_* tables
+    // For 'iot', data comes from real IoT device ingestion (future)
+    const dataSource = (profile as any).data_source || 'simulation';
+    if (dataSource !== 'simulation') {
+      console.log(`[AutoSimulation] Skipping simulation - data_source is '${dataSource}'`);
+      return;
+    }
 
     // Start the simulation loop
     const startSimulation = async () => {

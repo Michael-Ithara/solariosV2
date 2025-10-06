@@ -20,6 +20,7 @@ export interface UserProfile {
   occupants: number;
   theme: string;
   dashboard_layout: string;
+  data_source: 'demo' | 'simulation' | 'iot';
   created_at: string;
   updated_at: string;
 }
@@ -59,12 +60,12 @@ export function useProfile() {
           if (insertError) {
             throw insertError;
           }
-          setProfile(newProfile);
+          setProfile(newProfile as UserProfile);
         } else {
           throw error;
         }
       } else {
-        setProfile(data);
+        setProfile(data as UserProfile);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch profile';
@@ -91,7 +92,7 @@ export function useProfile() {
 
       if (error) throw error;
 
-      setProfile(data);
+      setProfile(data as UserProfile);
       toast.success('Profile updated successfully');
       return data;
     } catch (err) {
