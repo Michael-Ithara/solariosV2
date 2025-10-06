@@ -612,6 +612,33 @@ export type Database = {
           },
         ]
       }
+      grid_prices: {
+        Row: {
+          created_at: string
+          id: string
+          price_per_kwh: number
+          price_tier: string
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price_per_kwh?: number
+          price_tier?: string
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price_per_kwh?: number
+          price_tier?: string
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       insight_rules: {
         Row: {
           action_type: string

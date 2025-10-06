@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
 import { WeatherWidget } from "@/components/widgets/WeatherWidget";
+import { GridPricingWidget } from "@/components/widgets/GridPricingWidget";
 import { EnergyChart } from "@/components/charts/EnergyChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert as AlertComponent, AlertDescription } from "@/components/ui/alert";
@@ -431,6 +432,7 @@ export default function Dashboard() {
         {/* Right Sidebar with Weather & Quick Stats */}
         <div className="space-y-6">
           <WeatherWidget />
+          <GridPricingWidget />
           
           {/* Quick Performance Stats */}
           <Card className="border-muted/40">
