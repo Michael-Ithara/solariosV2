@@ -114,8 +114,8 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch user's energy data for analysis
-    const [energyLogsRes, solarDataRes, appliancesRes, profileRes] = await Promise.all([
+    // Fetch user's energy data for analysis from unified tables
+    const [energyLogsRes, solarDataRes, appliancesRes, profileRes, weatherRes, gridPriceRes] = await Promise.all([
       supabase
         .from('energy_logs')
         .select('*')
@@ -138,13 +138,36 @@ serve(async (req) => {
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .single(),
+      supabase
+        .from('weather_data')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('grid_prices')
+        .select('*')
+        .eq('user_id', userId)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle()
     ]);
 
     const energyLogs = energyLogsRes.data || [];
     const solarData = solarDataRes.data || [];
     const appliances = appliancesRes.data || [];
     const profile = profileRes.data;
+    const currentWeather = weatherRes.data;
+    const currentGridPrice = gridPriceRes.data;
+
+    // Contextual validation helpers
+    const currentHour = new Date().getHours();
+    const isDaytime = currentHour >= 6 && currentHour <= 18;
+    const isNighttime = !isDaytime;
+    const isCloudyOrRainy = currentWeather?.weather_condition && 
+      ['cloudy', 'rainy', 'overcast'].includes(currentWeather.weather_condition.toLowerCase());
+    const currentIrradiance = currentWeather?.solar_irradiance_wm2 || 0;
 
     // Calculate analytics for AI analysis
     const totalConsumption = energyLogs.reduce((sum, log) => sum + log.consumption_kwh, 0);
@@ -160,7 +183,7 @@ serve(async (req) => {
       return acc;
     }, {} as Record<number, number>);
     
-    const peakHour = Object.entries(hourlyUsage).sort(([,a], [,b]) => b - a)[0];
+    const peakHour = Object.entries(hourlyUsage).sort(([,a], [,b]) => (b as number) - (a as number))[0];
     
     // Appliance efficiency analysis
     const applianceUsage = appliances.map(app => ({
@@ -183,7 +206,7 @@ serve(async (req) => {
         avgDailySolar: parseFloat(avgDailySolar.toFixed(2)),
         netUsage: parseFloat(netUsage.toFixed(2)),
         peakUsageHour: peakHour ? parseInt(peakHour[0]) : null,
-        peakUsageAmount: peakHour ? parseFloat(peakHour[1].toFixed(2)) : null
+        peakUsageAmount: peakHour ? parseFloat((peakHour[1] as number).toFixed(2)) : null
       },
       appliances: applianceUsage,
       monthlyCost: parseFloat((totalConsumption * (profile?.electricity_rate || 0.12)).toFixed(2))
@@ -249,17 +272,39 @@ serve(async (req) => {
       });
     }
 
+    const currency = profile?.currency || 'USD';
     insights.push({
       title: 'Monthly energy cost estimate',
-      description: `Based on recent usage, your monthly cost is approximately ${nextMonthCostFinal.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}.`,
+      description: `Based on recent usage, your monthly cost is approximately ${nextMonthCostFinal.toLocaleString(undefined, { style: 'currency', currency })}.`,
       category: 'cost',
     });
 
+    // Contextual validation: only show solar insights during daytime or if solar is present
     if (analysisData.usage.avgDailySolar > 0) {
+      const solarPercentage = Math.round((analysisData.usage.avgDailySolar / (analysisData.usage.avgDailyConsumption || 1)) * 100);
       insights.push({
         title: 'Solar contribution',
-        description: `Solar covers ~${Math.round((analysisData.usage.avgDailySolar / (analysisData.usage.avgDailyConsumption || 1)) * 100)}% of daily usage on average.`,
+        description: `Solar covers ~${solarPercentage}% of daily usage on average.`,
         category: 'solar',
+      });
+    }
+
+    // Add weather-contextual insight
+    if (currentWeather && isDaytime) {
+      const irradianceQuality = currentIrradiance > 700 ? 'excellent' : currentIrradiance > 400 ? 'good' : 'moderate';
+      insights.push({
+        title: 'Current solar conditions',
+        description: `Irradiance at ${currentIrradiance.toFixed(0)} W/m² (${irradianceQuality}). ${isCloudyOrRainy ? 'Cloud cover reducing solar output.' : 'Good conditions for solar generation.'}`,
+        category: 'solar',
+      });
+    }
+
+    // Add grid pricing insight
+    if (currentGridPrice) {
+      insights.push({
+        title: 'Current grid price',
+        description: `Grid electricity at ${currentGridPrice.price_per_kwh.toFixed(2)} ${currency}/kWh (${currentGridPrice.price_tier} rate). ${currentGridPrice.price_tier === 'peak' ? 'Consider reducing usage or shifting to solar.' : 'Good time for grid usage.'}`,
+        category: 'cost',
       });
     }
 
@@ -323,10 +368,11 @@ serve(async (req) => {
       });
     }
 
-    // 4) Solar optimization or install assessment
+    // 4) Solar optimization or install assessment (contextual validation)
     if ((analysisData.profile.solarCapacity || 0) > 0) {
       const extraSelfUseKwh = parseFloat((Math.max(0, analysisData.usage.avgDailySolar - 0.5) * 0.1 * 30).toFixed(2));
-      if (extraSelfUseKwh > 0) {
+      // Only recommend solar optimization if conditions make sense (not at night, not heavily cloudy)
+      if (extraSelfUseKwh > 0 && !isNighttime) {
         recommendations.push({
           title: 'Improve solar self-consumption',
           description: 'Time flexible loads during midday and consider a small battery to store excess.',
@@ -336,7 +382,8 @@ serve(async (req) => {
           category: 'solar',
         });
       }
-    } else {
+    } else if (isDaytime && !isCloudyOrRainy) {
+      // Only recommend solar installation during daytime with good weather
       const solarKwh = parseFloat(((analysisData.usage.avgDailyConsumption || 0) * 0.25 * 30).toFixed(2));
       recommendations.push({
         title: 'Assess rooftop solar feasibility',
@@ -437,7 +484,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in ai-energy-insights function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: (error as Error).message,
       success: false 
     }), {
       status: 500,

@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { LocationStep } from './steps/LocationStep';
 import { SmartMeterStep } from './steps/SmartMeterStep';
 import { SolarSystemStep } from './steps/SolarSystemStep';
 import { DeviceSetupStep } from './steps/DeviceSetupStep';
 import { SetupCompleteStep } from './steps/SetupCompleteStep';
+import { useOnboarding } from '@/contexts/OnboardingContext';
 
 export interface OnboardingData {
   location: {
@@ -51,41 +53,117 @@ const STEPS = [
 ];
 
 export function OnboardingWizard() {
-  const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [onboardingData, setOnboardingData] = useState<OnboardingData>({
+  const { state, setStepIndex, updateStepData, persist, reset } = useOnboarding();
+  const currentStep = state.currentStepIndex;
+
+  const onboardingData = useMemo<OnboardingData>(() => ({
     location: {
-      country: '',
-      city: '',
-      timezone: '',
-      currency: 'USD',
-      electricityRate: 0.12,
+      country: state.data?.location?.country || '',
+      city: state.data?.location?.city || '',
+      timezone: state.data?.location?.timezone || '',
+      currency: state.data?.location?.currency || 'USD',
+      electricityRate: state.data?.location?.electricityRate ?? 0.12,
     },
     smartMeter: {
-      type: 'demo',
+      type: (state.data?.['smart-meter']?.type as 'demo' | 'real') || 'demo',
+      brand: state.data?.['smart-meter']?.brand,
+      model: state.data?.['smart-meter']?.model,
+      connectionMethod: state.data?.['smart-meter']?.connectionMethod,
+      ...(state.data?.['smart-meter'] || {}),
     },
     solarSystem: {
-      hasSystem: false,
+      hasSystem: state.data?.['solar-system']?.hasSystem ?? false,
+      capacity: state.data?.['solar-system']?.capacity,
+      panelCount: state.data?.['solar-system']?.panelCount,
+      inverterBrand: state.data?.['solar-system']?.inverterBrand,
+      installDate: state.data?.['solar-system']?.installDate,
     },
     devices: {
-      selectedDevices: [],
-      customDevices: [],
+      selectedDevices: state.data?.devices?.selectedDevices || [],
+      customDevices: state.data?.devices?.customDevices || [],
     },
-  });
+  }), [state]);
 
-  const { user } = useAuth();
+  // Catalog to resolve selected onboarding device IDs to concrete name/power
+  const ONBOARDING_DEVICE_CATALOG: Record<string, { name: string; power: number }> = {
+    // heating-cooling
+    'central-air': { name: 'Central Air Conditioning', power: 3500 },
+    'heat-pump': { name: 'Heat Pump', power: 3000 },
+    'electric-heater': { name: 'Electric Heater', power: 1500 },
+    'ceiling-fan': { name: 'Ceiling Fan', power: 75 },
+    // kitchen
+    'refrigerator': { name: 'Refrigerator', power: 150 },
+    'dishwasher': { name: 'Dishwasher', power: 1800 },
+    'oven': { name: 'Electric Oven', power: 3000 },
+    'microwave': { name: 'Microwave', power: 1000 },
+    'coffee-maker': { name: 'Coffee Maker', power: 1200 },
+    // laundry
+    'washer': { name: 'Washing Machine', power: 2000 },
+    'dryer': { name: 'Electric Dryer', power: 3000 },
+    // electronics
+    'tv-55': { name: '55" LED TV', power: 150 },
+    'desktop-pc': { name: 'Desktop Computer', power: 500 },
+    'laptop': { name: 'Laptop', power: 65 },
+    'gaming-console': { name: 'Gaming Console', power: 180 },
+    // lighting
+    'led-bulbs': { name: 'LED Light Bulbs (10x)', power: 100 },
+    'outdoor-lights': { name: 'Outdoor Lighting', power: 200 },
+    // other
+    'water-heater': { name: 'Electric Water Heater', power: 4000 },
+    'pool-pump': { name: 'Pool Pump', power: 1500 },
+    'ev-charger': { name: 'EV Charger', power: 7000 },
+  };
+
+  const { user, refreshUser } = useAuth();
   const { updateProfile } = useProfile();
 
-  const updateStepData = (stepId: string, data: any) => {
-    setOnboardingData(prev => ({
-      ...prev,
-      [stepId.replace('-', '_').replace('smart_meter', 'smartMeter').replace('solar_system', 'solarSystem')]: data,
-    }));
+  const handleUpdateStepData = (stepId: string, data: any) => {
+    updateStepData(stepId, data);
+    void persist();
   };
 
   const handleNext = async () => {
     if (currentStep < STEPS.length - 1) {
-      setCurrentStep(currentStep + 1);
+      // Require validation for real smart meter before proceeding past that step
+      const currentId = STEPS[currentStep].id;
+      // Persist step-specific data to DB as we advance
+      try {
+        if (currentId === 'location') {
+          await updateProfile({
+            currency: onboardingData.location.currency,
+            electricity_rate: onboardingData.location.electricityRate,
+          });
+        }
+        if (currentId === 'solar-system') {
+          await updateProfile({
+            solar_panel_capacity: onboardingData.solarSystem.capacity || 0,
+          });
+        }
+        if (currentId === 'smart-meter') {
+          const sm = onboardingData.smartMeter as any;
+          if (sm.type === 'real' && sm.validated) {
+            await supabase.auth.updateUser({
+              data: {
+                meterConnected: true,
+                meterBrand: sm.brand || null,
+                meterMethod: sm.connectionMethod || null,
+              }
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to persist step data:', e);
+      }
+      if (currentId === 'smart-meter') {
+        const sm = onboardingData.smartMeter as any;
+        if (sm.type === 'real' && !sm.validated) {
+          console.warn('Please test and validate your smart meter connection before continuing.');
+          return;
+        }
+      }
+      setStepIndex(currentStep + 1);
+      await persist();
     } else {
       // Complete onboarding
       await completeOnboarding();
@@ -94,7 +172,7 @@ export function OnboardingWizard() {
 
   const handleBack = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      setStepIndex(currentStep - 1);
     }
   };
 
@@ -103,14 +181,139 @@ export function OnboardingWizard() {
     
     setIsLoading(true);
     try {
+      // Update user metadata to mark onboarding as complete
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { onboarding_completed: true }
+      });
+      
+      if (metadataError) throw metadataError;
+
       // Update user profile with onboarding data
       await updateProfile({
         currency: onboardingData.location.currency,
         electricity_rate: onboardingData.location.electricityRate,
         solar_panel_capacity: onboardingData.solarSystem.capacity || 0,
-        // Mark onboarding as complete
         dashboard_layout: 'personalized',
+        data_source: 'simulation', // Set to simulation mode after onboarding
       });
+
+      // If user connected a real smart meter and validated, persist minimal metadata
+      if ((onboardingData.smartMeter as any)?.type === 'real' && (onboardingData.smartMeter as any)?.validated) {
+        const { error: metaErr } = await supabase.auth.updateUser({
+          data: {
+            meterConnected: true,
+            meterBrand: (onboardingData.smartMeter as any)?.brand || null,
+            meterMethod: (onboardingData.smartMeter as any)?.connectionMethod || null,
+          }
+        });
+        if (metaErr) {
+          console.error('Failed to persist meter metadata:', metaErr);
+        }
+      }
+
+      // Persist selected devices into appliances table (deduplicate existing)
+      try {
+        const selectedIds = onboardingData.devices.selectedDevices || [];
+        const custom = onboardingData.devices.customDevices || [];
+        const rows = [
+          ...selectedIds
+            .map(id => ({ id, meta: ONBOARDING_DEVICE_CATALOG[id] }))
+            .filter(item => !!item.meta)
+            .map(item => ({
+              user_id: user.id,
+              name: item.meta!.name,
+              power_rating_w: item.meta!.power,
+              status: 'off' as const,
+              total_kwh: 0
+            })),
+          ...custom.map(dev => ({
+            user_id: user.id,
+            name: dev.name,
+            power_rating_w: dev.powerRating,
+            status: 'off' as const,
+            total_kwh: 0
+          }))
+        ];
+        if (rows.length > 0) {
+          // Fetch existing appliance names for user to avoid duplicates
+          const { data: existing, error: existingErr } = await supabase
+            .from('appliances')
+            .select('name')
+            .eq('user_id', user.id);
+          if (existingErr) throw existingErr;
+          const existingNames = new Set((existing || []).map(a => (a as any).name as string));
+          const filtered = rows.filter(r => !existingNames.has(r.name));
+          if (filtered.length > 0) {
+            await supabase.from('appliances').insert(filtered);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to persist onboarding devices:', e);
+      }
+
+      // Save all onboarding data to profiles table
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            country: onboardingData.location.country,
+            city: onboardingData.location.city,
+            timezone: onboardingData.location.timezone,
+            currency: onboardingData.location.currency,
+            electricity_rate: onboardingData.location.electricityRate,
+            smart_meter_type: onboardingData.smartMeter.type,
+            smart_meter_brand: onboardingData.smartMeter.brand,
+            smart_meter_model: onboardingData.smartMeter.model,
+            smart_meter_connection_method: onboardingData.smartMeter.connectionMethod,
+            has_solar_system: onboardingData.solarSystem.hasSystem,
+            solar_panel_capacity: onboardingData.solarSystem.capacity,
+            solar_panel_count: onboardingData.solarSystem.panelCount,
+            solar_inverter_brand: onboardingData.solarSystem.inverterBrand,
+            solar_installation_date: onboardingData.solarSystem.installDate
+          })
+          .eq('user_id', user.id);
+      } catch (profileErr) {
+        console.error('Failed to save profile data:', profileErr);
+      }
+
+      // Initialize simulation data - create initial real_time_energy_data entry
+      try {
+        const now = new Date().toISOString();
+        const deviceCount = (onboardingData.devices.selectedDevices?.length || 0) + (onboardingData.devices.customDevices?.length || 0);
+        await supabase.from('real_time_energy_data').insert({
+          user_id: user.id,
+          timestamp: now,
+          consumption_kw: 0,
+          solar_production_kw: 0,
+          grid_usage_kw: 0,
+          battery_level_percent: 0,
+          active_devices: 0,
+          total_devices: deviceCount,
+          temperature_celsius: 20,
+          cloud_cover_percent: 50,
+          weather_condition: 'partly-cloudy'
+        });
+      } catch (simErr) {
+        console.error('Failed to initialize simulation data:', simErr);
+      }
+
+      // Mark onboarding as complete in user metadata
+      const { data: updatedUser, error: metaError } = await supabase.auth.updateUser({
+        data: { 
+          onboardingComplete: true,
+          onboarding_completed: true,
+          onboarding_version: 1 
+        }
+      });
+      if (metaError) {
+        console.error('Failed to set onboardingComplete metadata:', metaError);
+      }
+
+      // Refresh session/user so route guards see the flag immediately
+      await refreshUser();
+
+      // Clear local onboarding state
+      reset();
 
       // Navigate to dashboard
       window.location.href = '/dashboard';
@@ -129,7 +332,7 @@ export function OnboardingWizard() {
         return (
           <LocationStep
             data={onboardingData.location}
-            onUpdate={(data) => updateStepData('location', data)}
+            onUpdate={(data) => handleUpdateStepData('location', data)}
             onNext={handleNext}
           />
         );
@@ -137,7 +340,7 @@ export function OnboardingWizard() {
         return (
           <SmartMeterStep
             data={onboardingData.smartMeter}
-            onUpdate={(data) => updateStepData('smart-meter', data)}
+            onUpdate={(data) => handleUpdateStepData('smart-meter', data)}
             onNext={handleNext}
             onBack={handleBack}
           />
@@ -146,7 +349,7 @@ export function OnboardingWizard() {
         return (
           <SolarSystemStep
             data={onboardingData.solarSystem}
-            onUpdate={(data) => updateStepData('solar-system', data)}
+            onUpdate={(data) => handleUpdateStepData('solar-system', data)}
             onNext={handleNext}
             onBack={handleBack}
           />
@@ -155,7 +358,7 @@ export function OnboardingWizard() {
         return (
           <DeviceSetupStep
             data={onboardingData.devices}
-            onUpdate={(data) => updateStepData('devices', data)}
+            onUpdate={(data) => handleUpdateStepData('devices', data)}
             onNext={handleNext}
             onBack={handleBack}
           />

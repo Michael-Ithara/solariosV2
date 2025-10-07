@@ -5,24 +5,28 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useState, useEffect } from "react";
+import { useProfile } from "@/hooks/useProfile";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export function AppNavbar() {
   const [isDark, setIsDark] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user, role, signOut } = useAuth();
+  const { profile } = useProfile();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Initialize dark mode from localStorage
+  // Initialize/apply theme from profile, falling back to localStorage and system
   useEffect(() => {
+    const profileTheme = profile?.theme; // 'light' | 'dark' | 'system'
     const savedTheme = localStorage.getItem('theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && systemPrefersDark);
-    
+    const desired = profileTheme && profileTheme !== 'system' ? profileTheme : (savedTheme || (systemPrefersDark ? 'dark' : 'light'));
+    const shouldBeDark = desired === 'dark';
     setIsDark(shouldBeDark);
     document.documentElement.classList.toggle('dark', shouldBeDark);
-  }, []);
+    localStorage.setItem('theme', shouldBeDark ? 'dark' : 'light');
+  }, [profile?.theme]);
 
   const toggleDarkMode = () => {
     const newTheme = !isDark;

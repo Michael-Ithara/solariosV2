@@ -36,8 +36,14 @@ function AppRoutes() {
     );
   }
 
-  // Check if user needs onboarding (new users without completed setup)
-  const needsOnboarding = user && !user.user_metadata?.onboarding_completed;
+  // Check if user needs onboarding (supports both new and legacy flags)
+  const onboardingComplete = Boolean(
+    user && (
+      (user.user_metadata as any)?.onboardingComplete === true ||
+      (user.user_metadata as any)?.onboarding_completed === true
+    )
+  );
+  const needsOnboarding = Boolean(user) && !onboardingComplete;
   
   if (needsOnboarding) {
     return (

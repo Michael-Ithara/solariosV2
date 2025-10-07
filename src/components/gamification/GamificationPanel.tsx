@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { AchievementCard } from "./AchievementCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Target, Star, Zap } from "lucide-react";
+import { CO2Tracker } from "./CO2Tracker";
 
 export function GamificationPanel() {
   const {
@@ -13,8 +14,17 @@ export function GamificationPanel() {
     totalPoints,
     level,
     getRecentAchievements,
-    getLevelProgress
+    getLevelProgress,
+    isLoading,
   } = useGamification();
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">Loading gamification data...</p>
+      </div>
+    );
+  }
 
   const recentAchievements = getRecentAchievements();
   const unlockedCount = achievements.filter(a => a.unlocked).length;
@@ -97,6 +107,9 @@ export function GamificationPanel() {
           </CardContent>
         </Card>
       )}
+
+      {/* CO₂ Tracker */}
+      <CO2Tracker />
 
       {/* Detailed View */}
       <Tabs defaultValue="achievements" className="w-full">

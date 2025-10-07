@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from './use-toast';
 
 export interface Achievement {
   id: string;
@@ -25,123 +28,183 @@ export interface Milestone {
   completed: boolean;
 }
 
-const initialAchievements: Achievement[] = [
-  {
-    id: 'first_day',
-    title: 'First Day Online',
-    description: 'Monitor your energy for the first day',
-    icon: '🚀',
-    unlocked: true,
-    unlockedAt: new Date(),
-    progress: 1,
-    maxProgress: 1,
-    category: 'consistency',
-    points: 50
-  },
-  {
-    id: 'solar_hero',
-    title: 'Solar Hero',
-    description: 'Generate 100kWh from solar panels',
-    icon: '☀️',
-    unlocked: false,
-    progress: 42,
-    maxProgress: 100,
-    category: 'solar',
-    points: 200
-  },
-  {
-    id: 'energy_saver',
-    title: 'Energy Saver',
-    description: 'Reduce consumption by 20% for a week',
-    icon: '💡',
-    unlocked: false,
-    progress: 15,
-    maxProgress: 20,
-    category: 'energy_saving',
-    points: 150
-  },
-  {
-    id: 'efficiency_master',
-    title: 'Efficiency Master',
-    description: 'Maintain 90%+ efficiency for 30 days',
-    icon: '⚡',
-    unlocked: false,
-    progress: 12,
-    maxProgress: 30,
-    category: 'efficiency',
-    points: 300
-  },
-  {
-    id: 'week_warrior',
-    title: 'Week Warrior',
-    description: 'Check your dashboard 7 days in a row',
-    icon: '🔥',
-    unlocked: false,
-    progress: 3,
-    maxProgress: 7,
-    category: 'consistency',
-    points: 100
-  }
-];
-
-const initialMilestones: Milestone[] = [
-  {
-    id: 'daily_solar',
-    title: 'Daily Solar Goal',
-    description: 'Generate 50kWh today',
-    target: 50,
-    current: 42,
-    unit: 'kWh',
-    category: 'daily',
-    reward: '25 points',
-    completed: false
-  },
-  {
-    id: 'weekly_savings',
-    title: 'Weekly Savings',
-    description: 'Save $100 this week',
-    target: 100,
-    current: 156,
-    unit: '$',
-    category: 'weekly',
-    reward: '100 points',
-    completed: true
-  },
-  {
-    id: 'monthly_efficiency',
-    title: 'Monthly Efficiency',
-    description: 'Maintain 85% efficiency this month',
-    target: 85,
-    current: 87,
-    unit: '%',
-    category: 'monthly',
-    reward: 'Efficiency Badge',
-    completed: true
-  }
-];
+const categoryIcons: Record<string, string> = {
+  energy_saving: '💡',
+  solar: '☀️',
+  efficiency: '⚡',
+  consistency: '🔥',
+};
 
 export function useGamification() {
-  const [achievements, setAchievements] = useState<Achievement[]>(initialAchievements);
-  const [milestones, setMilestones] = useState<Milestone[]>(initialMilestones);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
   const [level, setLevel] = useState(1);
-  const [experiencePoints, setExperiencePoints] = useState(150);
-  const [nextLevelXP, setNextLevelXP] = useState(200);
+  const [experiencePoints, setExperiencePoints] = useState(0);
+  const [nextLevelXP, setNextLevelXP] = useState(100);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Calculate total points from unlocked achievements
-    const points = achievements
-      .filter(achievement => achievement.unlocked)
-      .reduce((sum, achievement) => sum + achievement.points, 0);
-    
-    setTotalPoints(points);
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
-    // Calculate level based on total XP
-    const totalXP = experiencePoints;
-    const newLevel = Math.floor(totalXP / 100) + 1;
-    setLevel(newLevel);
-    setNextLevelXP(newLevel * 100);
-  }, [achievements, experiencePoints]);
+    fetchGamificationData();
+
+    // Subscribe to achievement updates
+    const channel = supabase
+      .channel('user-achievements-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_achievements',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Achievement updated:', payload);
+          fetchGamificationData();
+          
+          // Show toast if newly unlocked
+          if (payload.new.unlocked && !payload.old.unlocked) {
+            const achievement = achievements.find(a => a.id === payload.new.achievement_id);
+            if (achievement) {
+              toast({
+                title: '🏅 New Achievement!',
+                description: `${achievement.title} (+${achievement.points} XP)`,
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const fetchGamificationData = async () => {
+    if (!user) return;
+
+    try {
+      // Fetch all achievements with user progress
+      const { data: achievementsData } = await supabase
+        .from('achievements')
+        .select(`
+          id,
+          code,
+          title,
+          description,
+          category,
+          max_progress,
+          points,
+          user_achievements (
+            progress,
+            unlocked,
+            unlocked_at
+          )
+        `)
+        .eq('user_achievements.user_id', user.id);
+
+      if (achievementsData) {
+        const formattedAchievements: Achievement[] = achievementsData.map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          description: a.description,
+          icon: categoryIcons[a.category] || '🎯',
+          unlocked: a.user_achievements?.[0]?.unlocked || false,
+          unlockedAt: a.user_achievements?.[0]?.unlocked_at 
+            ? new Date(a.user_achievements[0].unlocked_at) 
+            : undefined,
+          progress: a.user_achievements?.[0]?.progress || 0,
+          maxProgress: a.max_progress,
+          category: a.category,
+          points: a.points,
+        }));
+        setAchievements(formattedAchievements);
+      }
+
+      // Fetch user points and level
+      const { data: pointsData } = await supabase
+        .from('user_points')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (pointsData) {
+        setTotalPoints(pointsData.points || 0);
+        setLevel(pointsData.level || 1);
+        setExperiencePoints(pointsData.xp || 0);
+        setNextLevelXP(pointsData.level * 100);
+      }
+
+      // Calculate milestones from recent data
+      await fetchMilestones();
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching gamification data:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const fetchMilestones = async () => {
+    if (!user) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Daily solar goal
+    const { data: dailySolar } = await supabase
+      .from('solar_data')
+      .select('generation_kwh')
+      .eq('user_id', user.id)
+      .gte('logged_at', today.toISOString());
+
+    const dailySolarTotal = dailySolar?.reduce((sum, d) => sum + d.generation_kwh, 0) || 0;
+
+    // Weekly CO₂ savings
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const { data: weeklyCO2 } = await supabase
+      .from('co2_tracker')
+      .select('co2_saved_kg')
+      .eq('user_id', user.id)
+      .gte('timestamp', weekAgo.toISOString());
+
+    const weeklyCO2Total = weeklyCO2?.reduce((sum, d) => sum + d.co2_saved_kg, 0) || 0;
+
+    setMilestones([
+      {
+        id: 'daily_solar',
+        title: 'Daily Solar Goal',
+        description: 'Generate 10 kWh today',
+        target: 10,
+        current: dailySolarTotal,
+        unit: 'kWh',
+        category: 'daily',
+        reward: '25 points',
+        completed: dailySolarTotal >= 10,
+      },
+      {
+        id: 'weekly_co2',
+        title: 'Weekly CO₂ Savings',
+        description: 'Save 5 kg CO₂ this week',
+        target: 5,
+        current: weeklyCO2Total,
+        unit: 'kg',
+        category: 'weekly',
+        reward: '100 points',
+        completed: weeklyCO2Total >= 5,
+      },
+    ]);
+  };
 
   const unlockAchievement = (achievementId: string) => {
     setAchievements(prev => 
@@ -203,6 +266,7 @@ export function useGamification() {
     completeMilestone,
     getRecentAchievements,
     getProgressPercentage,
-    getLevelProgress
+    getLevelProgress,
+    isLoading,
   };
 }

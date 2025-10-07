@@ -33,6 +33,7 @@ export function useAIInsights() {
   const [forecast, setForecast] = useState<AIForecast | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastGeneratedAt, setLastGeneratedAt] = useState<Date | null>(null);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -118,6 +119,7 @@ export function useAIInsights() {
         setInsights(data.insights || []);
         setRecommendations(data.recommendations || []);
         setForecast(data.forecast || null);
+        setLastGeneratedAt(new Date());
 
         toast({
           title: "AI Analysis Complete",
@@ -140,13 +142,71 @@ export function useAIInsights() {
     }
   };
 
-  // Load stored data on mount
+  // Load stored data on mount and set up real-time subscriptions
   useEffect(() => {
-    if (user) {
-      fetchStoredRecommendations();
-      fetchForecast();
-    }
-  }, [user]);
+    if (!user) return;
+
+    fetchStoredRecommendations();
+    fetchForecast();
+
+    // Subscribe to real-time updates for energy logs and solar data
+    const energyChannel = supabase
+      .channel('ai-insights-energy-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'energy_logs',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          // Auto-regenerate insights if last generation was > 1 hour ago
+          if (!lastGeneratedAt || Date.now() - lastGeneratedAt.getTime() > 60 * 60 * 1000) {
+            console.log('Energy data updated, auto-generating insights...');
+            generateInsights();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'solar_data',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          if (!lastGeneratedAt || Date.now() - lastGeneratedAt.getTime() > 60 * 60 * 1000) {
+            console.log('Solar data updated, auto-generating insights...');
+            generateInsights();
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to recommendations updates
+    const recChannel = supabase
+      .channel('ai-recommendations-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ai_recommendations',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchStoredRecommendations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(energyChannel);
+      supabase.removeChannel(recChannel);
+    };
+  }, [user, lastGeneratedAt]);
 
   return {
     insights,
@@ -154,6 +214,7 @@ export function useAIInsights() {
     forecast,
     isLoading,
     error,
+    lastGeneratedAt,
     generateInsights,
     refetch: () => {
       fetchStoredRecommendations();

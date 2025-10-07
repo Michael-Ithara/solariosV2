@@ -10,6 +10,10 @@ export function useSimulation() {
   const location = useLocation();
   const { toast } = useToast();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Accumulators for periodic DB logging in user mode
+  const pendingConsumptionRef = useRef<number>(0);
+  const pendingSolarRef = useRef<number>(0);
+  const pendingWindowStartRef = useRef<Date | null>(null);
   
   const [simulationState, setSimulationState] = useState<SimulationState>({
     devices: [],
@@ -58,20 +62,107 @@ export function useSimulation() {
   const [realtimeChannel, setRealtimeChannel] = useState<any>(null);
   const isDemoMode = location.pathname === '/demo' || !user;
 
-  // Auto-start simulation on mount for demo mode
+  // Initialize simulation/devices and set up realtime sync for authenticated users
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
     if (isDemoMode) {
       loadDemoDevices().then(() => {
-        setTimeout(startSimulation, 1000); // Slight delay for smoother UX
+        setTimeout(() => {
+          if (intervalRef.current) return;
+          setSimulationState(prev => ({ ...prev, isRunning: true }));
+          intervalRef.current = setInterval(() => {
+            setSimulationState(prev => {
+              const now = new Date(prev.currentTime.getTime() + 30000);
+              const minute = now.getMinutes();
+              const shouldUpdateWeather = minute % 2 === 0;
+              let newWeather = prev.weather;
+              if (shouldUpdateWeather) {
+                const cloudVariation = (Math.random() - 0.5) * 0.05;
+                const tempVariation = (Math.random() - 0.5) * 0.2;
+                newWeather = {
+                  ...prev.weather,
+                  cloudCover: Math.max(0, Math.min(1, prev.weather.cloudCover + cloudVariation)),
+                  temperature: Math.max(10, Math.min(35, prev.weather.temperature + tempVariation)),
+                  condition: prev.weather.cloudCover > 0.7 ? 'cloudy' : 
+                            prev.weather.cloudCover > 0.4 ? 'partly-cloudy' : 'sunny'
+                };
+              }
+              return {
+                ...prev,
+                currentTime: now,
+                weather: newWeather
+              };
+            });
+          }, 3000);
+        }, 1000);
       });
     } else {
       loadUserDevices();
+
+      // Sync device changes in real-time for authenticated users
+      if (user) {
+        channel = supabase
+          .channel('appliances-sim')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'appliances', filter: `user_id=eq.${user.id}` },
+            (payload: any) => {
+              const record = payload.new || payload.old;
+              if (!record) return;
+
+              setSimulationState(prev => {
+                if (payload.eventType === 'INSERT') {
+                  const newDevice: SimulatedDevice = {
+                    id: record.id,
+                    templateId: 'user',
+                    name: record.name,
+                    status: record.status,
+                    powerRating: record.power_rating_w || 0,
+                    currentUsage: record.status === 'on' ? (record.power_rating_w || 0) / 1000 : 0,
+                    scheduledTasks: [],
+                    settings: {},
+                    lastUsageUpdate: new Date().toISOString()
+                  };
+                  return { ...prev, devices: [...prev.devices, newDevice] };
+                }
+
+                if (payload.eventType === 'UPDATE') {
+                  return {
+                    ...prev,
+                    devices: prev.devices.map(d => d.id === record.id ? {
+                      ...d,
+                      name: record.name,
+                      status: record.status,
+                      powerRating: record.power_rating_w || 0,
+                      currentUsage: record.status === 'on' ? (record.power_rating_w || 0) / 1000 : 0,
+                      lastUsageUpdate: new Date().toISOString()
+                    } : d)
+                  };
+                }
+
+                if (payload.eventType === 'DELETE') {
+                  return { ...prev, devices: prev.devices.filter(d => d.id !== record.id) };
+                }
+
+                return prev;
+              });
+            }
+          )
+          .subscribe();
+
+        setRealtimeChannel(channel);
+      }
     }
-    
+
     return () => {
-      stopSimulation();
-      if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setSimulationState(prev => ({ ...prev, isRunning: false }));
+      if (channel) {
+        supabase.removeChannel(channel);
       }
     };
   }, [isDemoMode, user]);
@@ -84,6 +175,54 @@ export function useSimulation() {
       solarProduction,
       gridPrice
     }));
+
+    // Accumulate energy/solar for authenticated users in 10-min simulated windows
+    if (!isDemoMode && user) {
+      const windowStart = pendingWindowStartRef.current;
+      const now = simulationState.currentTime;
+      if (!windowStart) {
+        pendingWindowStartRef.current = now;
+      }
+      // Each tick advances simulated 30s
+      const kwhThisTick = totalConsumption * (30 / 3600);
+      const solarKwhThisTick = solarProduction * (30 / 3600);
+      pendingConsumptionRef.current += kwhThisTick;
+      pendingSolarRef.current += solarKwhThisTick;
+
+      const simulatedMsWindow = now.getTime() - (pendingWindowStartRef.current?.getTime() || now.getTime());
+      const tenMinutesMs = 10 * 60 * 1000;
+      if (simulatedMsWindow >= tenMinutesMs) {
+        // Flush to DB and reset window
+        const flush = async () => {
+          try {
+            const loggedAt = now.toISOString();
+            const consumption = Math.max(0, pendingConsumptionRef.current);
+            const solar = Math.max(0, pendingSolarRef.current);
+            pendingConsumptionRef.current = 0;
+            pendingSolarRef.current = 0;
+            pendingWindowStartRef.current = now;
+
+            if (consumption > 0) {
+              await supabase.from('energy_logs').insert({
+                user_id: user.id,
+                consumption_kwh: Number(consumption.toFixed(4)),
+                logged_at: loggedAt
+              });
+            }
+            if (solar > 0) {
+              await supabase.from('solar_data').insert({
+                user_id: user.id,
+                generation_kwh: Number(solar.toFixed(4)),
+                logged_at: loggedAt
+              });
+            }
+          } catch (e) {
+            console.error('Failed to write periodic energy/solar logs:', e);
+          }
+        };
+        void flush();
+      }
+    }
   }, [totalConsumption, solarProduction, gridPrice]);
 
   const loadDemoDevices = async () => {
@@ -148,8 +287,9 @@ export function useSimulation() {
   };
 
   const addDevice = useCallback(async (template: DeviceTemplate, customName?: string) => {
+    const tempId = Date.now().toString();
     const newDevice: SimulatedDevice = {
-      id: Date.now().toString(),
+      id: tempId,
       templateId: template.id,
       name: customName || template.name,
       status: 'off',
@@ -169,7 +309,7 @@ export function useSimulation() {
     } else if (user) {
       // For authenticated users, save to database
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('appliances')
           .insert({
             user_id: user.id,
@@ -177,13 +317,15 @@ export function useSimulation() {
             power_rating_w: newDevice.powerRating,
             status: 'off',
             total_kwh: 0
-          });
+          })
+          .select('*')
+          .single();
 
         if (error) throw error;
 
         setSimulationState(prev => ({
           ...prev,
-          devices: [...prev.devices, newDevice]
+          devices: [...prev.devices, { ...newDevice, id: (data as any).id }]
         }));
 
         toast({
@@ -318,7 +460,10 @@ export function useSimulation() {
   }, []);
 
   const resetSimulation = useCallback(() => {
-    stopSimulation();
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     setSimulationState(prev => ({
       ...prev,
       currentTime: new Date(),
@@ -334,14 +479,42 @@ export function useSimulation() {
         status: 'off',
         currentUsage: 0,
         lastUsageUpdate: new Date().toISOString()
-      }))
+      })),
+      isRunning: false
     }));
     
     // Auto-restart after reset for smooth demo experience
     if (isDemoMode) {
-      setTimeout(startSimulation, 1000);
+      setTimeout(() => {
+        if (intervalRef.current) return;
+        setSimulationState(prev => ({ ...prev, isRunning: true }));
+        intervalRef.current = setInterval(() => {
+          setSimulationState(prev => {
+            const now = new Date(prev.currentTime.getTime() + 30000);
+            const minute = now.getMinutes();
+            const shouldUpdateWeather = minute % 2 === 0;
+            let newWeather = prev.weather;
+            if (shouldUpdateWeather) {
+              const cloudVariation = (Math.random() - 0.5) * 0.05;
+              const tempVariation = (Math.random() - 0.5) * 0.2;
+              newWeather = {
+                ...prev.weather,
+                cloudCover: Math.max(0, Math.min(1, prev.weather.cloudCover + cloudVariation)),
+                temperature: Math.max(10, Math.min(35, prev.weather.temperature + tempVariation)),
+                condition: prev.weather.cloudCover > 0.7 ? 'cloudy' : 
+                          prev.weather.cloudCover > 0.4 ? 'partly-cloudy' : 'sunny'
+              };
+            }
+            return {
+              ...prev,
+              currentTime: now,
+              weather: newWeather
+            };
+          });
+        }, 3000);
+      }, 1000);
     }
-  }, [stopSimulation, startSimulation, isDemoMode]);
+  }, [isDemoMode]);
 
   return {
     simulationState,

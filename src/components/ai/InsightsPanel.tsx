@@ -10,9 +10,12 @@ import {
   DollarSign,
   AlertTriangle,
   RefreshCw,
-  ChevronRight
+  ChevronRight,
+  ThumbsUp,
+  ThumbsDown
 } from "lucide-react";
 import { useAIInsights, type AIInsight, type AIRecommendation } from "@/hooks/useAIInsights";
+import { useInsightFeedback } from "@/hooks/useInsightFeedback";
 import { useCurrency } from "@/hooks/useCurrency";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,7 +50,8 @@ const PriorityBadge = ({ priority }: { priority: AIRecommendation['priority'] })
 };
 
 export function InsightsPanel() {
-  const { insights, recommendations, forecast, isLoading, error, generateInsights } = useAIInsights();
+  const { insights, recommendations, forecast, isLoading, error, lastGeneratedAt, generateInsights } = useAIInsights();
+  const { submitFeedback, submittingFeedback } = useInsightFeedback();
   const { formatCurrency } = useCurrency();
 
   if (error) {
@@ -67,7 +71,14 @@ export function InsightsPanel() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Brain className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-bold">AI Energy Insights</h2>
+          <div>
+            <h2 className="text-2xl font-bold">AI Energy Insights</h2>
+            {lastGeneratedAt && (
+              <p className="text-xs text-muted-foreground">
+                Last updated: {lastGeneratedAt.toLocaleTimeString()}
+              </p>
+            )}
+          </div>
         </div>
         <Button 
           onClick={generateInsights} 
@@ -190,7 +201,7 @@ export function InsightsPanel() {
                           {rec.description}
                         </p>
                         
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-4">
                           <div className="flex items-center gap-4 text-sm">
                             <div className="flex items-center gap-1">
                               <Zap className="h-4 w-4 text-energy-consumption" />
@@ -202,7 +213,28 @@ export function InsightsPanel() {
                             </div>
                           </div>
                           
-                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                          {rec.id && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => submitFeedback(rec.id!, true)}
+                                disabled={submittingFeedback === rec.id}
+                              >
+                                <ThumbsUp className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => submitFeedback(rec.id!, false)}
+                                disabled={submittingFeedback === rec.id}
+                              >
+                                <ThumbsDown className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
