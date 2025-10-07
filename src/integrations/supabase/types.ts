@@ -262,6 +262,36 @@ export type Database = {
           },
         ]
       }
+      co2_tracker: {
+        Row: {
+          co2_saved_kg: number
+          created_at: string
+          grid_kwh: number
+          id: string
+          solar_kwh: number
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          co2_saved_kg?: number
+          created_at?: string
+          grid_kwh?: number
+          id?: string
+          solar_kwh?: number
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          co2_saved_kg?: number
+          created_at?: string
+          grid_kwh?: number
+          id?: string
+          solar_kwh?: number
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       data_ingestion_jobs: {
         Row: {
           completed_at: string | null

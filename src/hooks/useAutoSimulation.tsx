@@ -178,6 +178,17 @@ export function useAutoSimulation() {
             });
           }
 
+          // Track CO₂ savings
+          if (avgSolar > 0) {
+            await supabase.from('co2_tracker').insert({
+              user_id: user.id,
+              timestamp: now.toISOString(),
+              solar_kwh: avgSolar,
+              grid_kwh: Math.max(0, avgConsumption - avgSolar),
+              co2_saved_kg: avgSolar * 0.233,
+            });
+          }
+
           // Reset accumulator
           accumulatorRef.current = { consumption: 0, solar: 0, count: 0 };
         }
@@ -187,7 +198,8 @@ export function useAutoSimulation() {
         await Promise.all([
           supabase.from('real_time_energy_data').delete().eq('user_id', user.id).lt('timestamp', oneDayAgo),
           supabase.from('weather_data').delete().lt('timestamp', oneDayAgo),
-          supabase.from('grid_prices').delete().eq('user_id', user.id).lt('timestamp', oneDayAgo)
+          supabase.from('grid_prices').delete().eq('user_id', user.id).lt('timestamp', oneDayAgo),
+          supabase.from('co2_tracker').delete().eq('user_id', user.id).lt('timestamp', oneDayAgo)
         ]);
 
       }, 10000); // Run every 10 seconds (simulated 10 minutes)
