@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useUnifiedEnergyData } from "@/hooks/useUnifiedEnergyData";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -27,49 +27,48 @@ export default function Analytics() {
   const { user } = useAuth();
   const [totalConsumption, setTotalConsumption] = useState(0);
   const [totalSolar, setTotalSolar] = useState(0);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setDataLoading(false);
+      return;
+    }
 
     const fetchTotals = async () => {
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      try {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-      const [energyRes, solarRes] = await Promise.all([
-        supabase
-          .from('energy_logs')
-          .select('consumption_kwh')
-          .eq('user_id', user.id)
-          .gte('logged_at', weekAgo.toISOString()),
-        supabase
-          .from('solar_data')
-          .select('generation_kwh')
-          .eq('user_id', user.id)
-          .gte('logged_at', weekAgo.toISOString())
-      ]);
+        const [energyRes, solarRes] = await Promise.all([
+          supabase
+            .from('energy_logs')
+            .select('consumption_kwh')
+            .eq('user_id', user.id)
+            .gte('logged_at', weekAgo.toISOString()),
+          supabase
+            .from('solar_data')
+            .select('generation_kwh')
+            .eq('user_id', user.id)
+            .gte('logged_at', weekAgo.toISOString())
+        ]);
 
-      const consumption = energyRes.data?.reduce((sum, e) => sum + e.consumption_kwh, 0) || 0;
-      const solar = solarRes.data?.reduce((sum, s) => sum + s.generation_kwh, 0) || 0;
+        const consumption = energyRes.data?.reduce((sum, e) => sum + e.consumption_kwh, 0) || 0;
+        const solar = solarRes.data?.reduce((sum, s) => sum + s.generation_kwh, 0) || 0;
 
-      setTotalConsumption(consumption);
-      setTotalSolar(solar);
+        setTotalConsumption(consumption);
+        setTotalSolar(solar);
+      } catch (error) {
+        console.error('Error fetching analytics data:', error);
+      } finally {
+        setDataLoading(false);
+      }
     };
 
     fetchTotals();
   }, [user]);
   
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-6">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-  
-  // Calculate weekly export earnings
-  const weeklyExportEarnings = convertFromUSD(12.90);
-  
-  // Use real data
-  const analyticsData = {
+  // Memoize analyticsData to prevent infinite re-renders
+  const analyticsData = useMemo(() => ({
     timeRange: "7d",
     totalConsumption,
     totalProduction: totalSolar,
@@ -88,22 +87,32 @@ export default function Analytics() {
     },
     insights: [
       {
-        type: "positive",
+        type: "positive" as const,
         title: "Excellent Solar Performance",
         description: "Your solar panels generated energy efficiently"
       },
       {
-        type: "warning", 
+        type: "warning" as const, 
         title: "Evening Usage Spike",
         description: "Energy consumption peaks at 6 PM - consider shifting some usage to midday"
       },
       {
-        type: "info",
+        type: "info" as const,
         title: "Grid Export Opportunity", 
         description: `You exported ${Math.max(0, totalSolar - totalConsumption).toFixed(1)} kWh to the grid`
       }
     ]
-  };
+  }), [totalConsumption, totalSolar]);
+
+  const weeklyExportEarnings = useMemo(() => convertFromUSD(12.90), [convertFromUSD]);
+  
+  if (isLoading || dataLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-6">
+        <LoadingSpinner />
+      </div>
+    );
+  }
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header */}
