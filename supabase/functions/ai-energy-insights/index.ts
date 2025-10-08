@@ -317,6 +317,15 @@ serve(async (req) => {
       });
     }
 
+    // Build appliance-specific context
+    const applianceNames = (appliances || []).map(a => a.name.toLowerCase());
+    const hasHVAC = applianceNames.some(n => n.includes('hvac') || n.includes('ac') || n.includes('thermostat') || n.includes('air'));
+    const hasWaterHeater = applianceNames.some(n => n.includes('water') && n.includes('heater'));
+    const hasPool = applianceNames.some(n => n.includes('pool'));
+    const hasEV = applianceNames.some(n => n.includes('ev') || n.includes('charger') || n.includes('electric vehicle'));
+    const hasDishwasher = applianceNames.some(n => n.includes('dishwasher'));
+    const hasWasher = applianceNames.some(n => n.includes('washer') || n.includes('laundry'));
+
     // Build recommendations (snake_case fields as expected by the app)
     const recommendations: Array<{
       title: string;
@@ -327,13 +336,19 @@ serve(async (req) => {
       category: string;
     }> = [];
 
-    // 1) Peak shifting
-    if (analysisData.usage.peakUsageAmount) {
+    // 1) Peak shifting - only if user has flexible appliances
+    if (analysisData.usage.peakUsageAmount && (hasDishwasher || hasWasher || hasEV)) {
       const dailyPeakAvg = analysisData.usage.peakUsageAmount / 30;
       const savingsKwh = parseFloat((dailyPeakAvg * 0.2 * 30).toFixed(2)); // 20% of peak hour load
+      const flexibleAppliances = [
+        hasDishwasher && 'dishwasher',
+        hasWasher && 'laundry',
+        hasEV && 'EV charging'
+      ].filter(Boolean).join(', ');
+      
       recommendations.push({
         title: 'Shift peak-hour usage',
-        description: 'Run dishwasher, EV charging, and laundry outside your peak hour to cut demand charges and reduce grid stress.',
+        description: `Run ${flexibleAppliances} outside your peak hour to cut demand charges and reduce grid stress.`,
         expected_savings_kwh: savingsKwh,
         expected_savings_currency: parseFloat((savingsKwh * rate).toFixed(2)),
         priority: 'high',
@@ -395,8 +410,8 @@ serve(async (req) => {
       });
     }
 
-    // Ensure at least 3 recommendations
-    if (recommendations.length < 3 && totalConsumption > 0) {
+    // Add HVAC recommendation only if user has HVAC
+    if (hasHVAC && recommendations.length < 5) {
       const hvacKwh = parseFloat((totalConsumption * 0.05).toFixed(2));
       recommendations.push({
         title: 'Optimize HVAC settings',
@@ -405,6 +420,45 @@ serve(async (req) => {
         expected_savings_currency: parseFloat((hvacKwh * rate).toFixed(2)),
         priority: 'high',
         category: 'behavior',
+      });
+    }
+
+    // Add water heater recommendation only if user has water heater
+    if (hasWaterHeater && recommendations.length < 5) {
+      const waterHeaterKwh = parseFloat((totalConsumption * 0.04).toFixed(2));
+      recommendations.push({
+        title: 'Schedule water heater',
+        description: 'Set timer to heat water during off-peak hours or when solar is abundant.',
+        expected_savings_kwh: waterHeaterKwh,
+        expected_savings_currency: parseFloat((waterHeaterKwh * rate).toFixed(2)),
+        priority: 'medium',
+        category: 'behavior',
+      });
+    }
+
+    // Add pool recommendation only if user has pool
+    if (hasPool && recommendations.length < 5) {
+      const poolKwh = parseFloat((totalConsumption * 0.06).toFixed(2));
+      recommendations.push({
+        title: 'Optimize pool pump schedule',
+        description: 'Run pool pump during solar peak hours (midday) instead of overnight.',
+        expected_savings_kwh: poolKwh,
+        expected_savings_currency: parseFloat((poolKwh * rate).toFixed(2)),
+        priority: 'medium',
+        category: 'behavior',
+      });
+    }
+
+    // Generic recommendations if still need more
+    if (recommendations.length < 3) {
+      const lightingKwh = parseFloat((totalConsumption * 0.03).toFixed(2));
+      recommendations.push({
+        title: 'Upgrade to LED lighting',
+        description: 'Replace remaining incandescent bulbs with LEDs for 75% energy savings.',
+        expected_savings_kwh: lightingKwh,
+        expected_savings_currency: parseFloat((lightingKwh * rate).toFixed(2)),
+        priority: 'low',
+        category: 'upgrade',
       });
     }
 

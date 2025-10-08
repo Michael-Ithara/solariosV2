@@ -10,6 +10,7 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppNavbar } from "@/components/layout/AppNavbar";
 import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLiveAchievements } from "@/hooks/useLiveAchievements";
 import Dashboard from "./pages/Dashboard";
 import Appliances from "./pages/Appliances";
 import Analytics from "./pages/Analytics";
@@ -27,6 +28,7 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  useLiveAchievements(); // Enable live achievement checking
 
   if (loading) {
     return (

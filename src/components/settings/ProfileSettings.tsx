@@ -34,6 +34,14 @@ export function ProfileSettings() {
     setIsSaving(true);
     try {
       await updateProfile(formData);
+      
+      // Apply theme immediately
+      if (formData.theme) {
+        const shouldBeDark = formData.theme === 'dark' || 
+          (formData.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', shouldBeDark);
+        localStorage.setItem('theme', shouldBeDark ? 'dark' : 'light');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -57,34 +65,13 @@ export function ProfileSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="display_name">Display Name</Label>
-              <Input
-                id="display_name"
-                value={formData.display_name || ''}
-                onChange={(e) => handleInputChange('display_name', e.target.value)}
-                placeholder="Your display name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="avatar_url">Avatar URL</Label>
-              <Input
-                id="avatar_url"
-                value={formData.avatar_url || ''}
-                onChange={(e) => handleInputChange('avatar_url', e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-          </div>
           <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea
-              id="bio"
-              value={formData.bio || ''}
-              onChange={(e) => handleInputChange('bio', e.target.value)}
-              placeholder="Tell us about yourself..."
-              rows={3}
+            <Label htmlFor="display_name">Display Name</Label>
+            <Input
+              id="display_name"
+              value={formData.display_name || ''}
+              onChange={(e) => handleInputChange('display_name', e.target.value)}
+              placeholder="Your display name"
             />
           </div>
         </CardContent>

@@ -1,20 +1,62 @@
 import { Moon, Sun, Bell, User, LogOut, Settings, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { NotificationsPanel } from "@/components/notifications/NotificationsPanel";
 import { useState, useEffect } from "react";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AppNavbar() {
   const [isDark, setIsDark] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user, role, signOut } = useAuth();
   const { profile } = useProfile();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Fetch unread alerts count
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUnreadCount = async () => {
+      const { count } = await supabase
+        .from('alerts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+
+      setUnreadCount(count || 0);
+    };
+
+    fetchUnreadCount();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('alerts-count')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'alerts',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchUnreadCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   // Initialize/apply theme from profile, falling back to localStorage and system
   useEffect(() => {
@@ -78,11 +120,26 @@ export function AppNavbar() {
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 relative">
-            <Bell className="h-4 w-4" />
-            <div className="absolute -top-1 -right-1 h-2 w-2 bg-danger rounded-full"></div>
-            <span className="sr-only">Notifications</span>
-          </Button>
+          {user && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 relative">
+                  <Bell className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <div className="absolute -top-1 -right-1 h-4 w-4 bg-danger rounded-full flex items-center justify-center">
+                      <span className="text-[10px] text-white font-bold">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    </div>
+                  )}
+                  <span className="sr-only">Notifications</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-0">
+                <NotificationsPanel />
+              </PopoverContent>
+            </Popover>
+          )}
 
           {/* User profile */}
           {user ? (

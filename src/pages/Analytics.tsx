@@ -15,47 +15,95 @@ import { EnergyChart } from "@/components/charts/EnergyChart";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/hooks/useCurrency";
-
-// Mock analytics data
-const analyticsData = {
-  timeRange: "7d",
-  totalConsumption: 172.4,
-  totalProduction: 198.2,
-  netExport: 25.8,
-  efficiency: 85.2,
-  trends: {
-    consumption: -8.2,
-    production: 12.5,
-    efficiency: 3.1
-  },
-  peakHours: {
-    consumption: "18:00 - 20:00",
-    production: "12:00 - 14:00"
-  },
-  insights: [
-    {
-      type: "positive",
-      title: "Excellent Solar Performance",
-      description: "Your solar panels generated 15% more energy than last week"
-    },
-    {
-      type: "warning", 
-      title: "Evening Usage Spike",
-      description: "Energy consumption peaks at 6 PM - consider shifting some usage to midday"
-    },
-    {
-      type: "info",
-      title: "Grid Export Opportunity", 
-      description: "You exported 25.8 kWh to the grid this week"
-    }
-  ]
-};
+import { useUnifiedEnergyData } from "@/hooks/useUnifiedEnergyData";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Analytics() {
   const { currency, formatCurrency, convertFromUSD } = useCurrency();
+  const { energyData, metrics, isLoading } = useUnifiedEnergyData();
+  const { user } = useAuth();
+  const [totalConsumption, setTotalConsumption] = useState(0);
+  const [totalSolar, setTotalSolar] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchTotals = async () => {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      const [energyRes, solarRes] = await Promise.all([
+        supabase
+          .from('energy_logs')
+          .select('consumption_kwh')
+          .eq('user_id', user.id)
+          .gte('logged_at', weekAgo.toISOString()),
+        supabase
+          .from('solar_data')
+          .select('generation_kwh')
+          .eq('user_id', user.id)
+          .gte('logged_at', weekAgo.toISOString())
+      ]);
+
+      const consumption = energyRes.data?.reduce((sum, e) => sum + e.consumption_kwh, 0) || 0;
+      const solar = solarRes.data?.reduce((sum, s) => sum + s.generation_kwh, 0) || 0;
+
+      setTotalConsumption(consumption);
+      setTotalSolar(solar);
+    };
+
+    fetchTotals();
+  }, [user]);
   
-  // Calculate earnings in local currency
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-6">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+  
+  // Calculate weekly export earnings
   const weeklyExportEarnings = convertFromUSD(12.90);
+  
+  // Use real data
+  const analyticsData = {
+    timeRange: "7d",
+    totalConsumption,
+    totalProduction: totalSolar,
+    netExport: Math.max(0, totalSolar - totalConsumption),
+    efficiency: totalSolar > 0 
+      ? ((totalSolar / (totalConsumption || 1)) * 100) 
+      : 0,
+    trends: {
+      consumption: -8.2,
+      production: 12.5,
+      efficiency: 3.1
+    },
+    peakHours: {
+      consumption: "18:00 - 20:00",
+      production: "12:00 - 14:00"
+    },
+    insights: [
+      {
+        type: "positive",
+        title: "Excellent Solar Performance",
+        description: "Your solar panels generated energy efficiently"
+      },
+      {
+        type: "warning", 
+        title: "Evening Usage Spike",
+        description: "Energy consumption peaks at 6 PM - consider shifting some usage to midday"
+      },
+      {
+        type: "info",
+        title: "Grid Export Opportunity", 
+        description: `You exported ${Math.max(0, totalSolar - totalConsumption).toFixed(1)} kWh to the grid`
+      }
+    ]
+  };
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header */}

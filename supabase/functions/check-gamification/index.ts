@@ -23,23 +23,41 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get all users with simulation or iot data source
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .in('data_source', ['simulation', 'iot']);
+    let userIds: string[] = [];
 
-    if (!profiles) {
-      console.log('No profiles found');
-      return new Response(JSON.stringify({ processed: 0 }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Allow manual trigger with userId
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        if (body.userId) {
+          userIds = [body.userId];
+          console.log('Manual trigger for user:', body.userId);
+        }
+      } catch (e) {
+        // Not JSON, continue to get all users
+      }
     }
 
-    console.log(`Processing ${profiles.length} users`);
+    // If no manual trigger, get all users with simulation or iot data source
+    if (userIds.length === 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .in('data_source', ['simulation', 'iot']);
 
-    for (const profile of profiles) {
-      const userId = profile.user_id;
+      if (!profiles) {
+        console.log('No profiles found');
+        return new Response(JSON.stringify({ processed: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      userIds = profiles.map(p => p.user_id);
+    }
+
+    console.log(`Processing ${userIds.length} users`);
+
+    for (const userId of userIds) {
 
       // Process CO₂ tracking
       await processCO2Tracking(userId, supabase);
