@@ -49,8 +49,15 @@ export function useSimulation() {
     const solarCurve = Math.sin(dayProgress * Math.PI);
     const cloudReduction = 1 - (simulationState.weather.cloudCover * 0.7);
     
-    return Math.max(0, solarCurve * 8 * cloudReduction);
-  }, [simulationState.currentTime, simulationState.weather.cloudCover]);
+    // Residential solar typically maxes at 3-8kW and provides 25-40% of household energy
+    // Most homes still rely primarily on grid
+    const maxSolarOutput = 5; // 5kW peak for typical residential system
+    const theoreticalOutput = solarCurve * maxSolarOutput * cloudReduction;
+    
+    // Solar only covers portion of consumption - grid is primary
+    const maxSolarContribution = totalConsumption * 0.35; // Max 35% solar contribution
+    return Math.max(0, Math.min(theoreticalOutput, maxSolarContribution));
+  }, [simulationState.currentTime, simulationState.weather.cloudCover, totalConsumption]);
 
   const gridPrice = useMemo(() => {
     const hour = simulationState.currentTime.getHours();

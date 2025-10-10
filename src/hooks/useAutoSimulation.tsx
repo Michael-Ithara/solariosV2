@@ -103,15 +103,20 @@ export function useAutoSimulation() {
           // Convert irradiance to power output (simplified formula)
           // Typical efficiency is around 15-20% for solar panels
           const panelEfficiency = 0.17;
-          solarProduction = (solarCapacity * irradiance / 1000) * panelEfficiency;
+          // Most residential solar installations are 3-10kW, not enough to power entire home
+          // Average solar provides 25-40% of household energy
+          const maxSolarContribution = consumption * 0.35; // Solar covers max 35% of consumption
+          const theoreticalSolarOutput = (solarCapacity * irradiance / 1000) * panelEfficiency;
+          solarProduction = Math.min(theoreticalSolarOutput, maxSolarContribution);
         }
 
         // Calculate grid pricing (dynamic based on time of day)
         const baseRate = profile.electricity_rate || 0.12;
         const { price: gridPrice, tier: priceTier } = calculateGridPrice(hour, baseRate);
 
-        // Calculate grid usage
-        const gridUsage = Math.max(0, consumption - solarProduction);
+        // Grid is primary source - solar only offsets it
+        // Most homes draw 60-75% from grid even with solar panels
+        const gridUsage = Math.max(consumption * 0.65, consumption - solarProduction);
 
         // Accumulate data for batching
         accumulatorRef.current.consumption += consumption * (10 / 60); // 10 minutes worth

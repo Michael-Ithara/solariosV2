@@ -24,13 +24,16 @@ serve(async (req) => {
     const minute = now.getMinutes();
 
     // Generate solar production (realistic curve based on time of day)
+    // Solar is supplementary - most homes with solar still draw 60-75% from grid
     let solarGeneration = 0;
     if (hour >= 6 && hour <= 18) {
       const dayProgress = (hour - 6) / 12;
       const solarCurve = Math.sin(dayProgress * Math.PI);
       // Random cloud effects
       const cloudFactor = 0.7 + (Math.random() * 0.3);
-      solarGeneration = Math.max(0, solarCurve * 8 * cloudFactor); // Max 8kW system
+      // Typical residential solar: 3-5kW peak, covers 25-40% of consumption
+      const maxSolarOutput = 4; // 4kW peak for typical system
+      solarGeneration = Math.max(0, solarCurve * maxSolarOutput * cloudFactor);
     }
 
     // Generate realistic consumption patterns
@@ -87,7 +90,10 @@ serve(async (req) => {
     if (solarError) console.error('Solar data error:', solarError);
 
     // Generate alerts based on conditions
-    const netUsage = consumption - solarGeneration;
+    // Grid is primary source - solar only supplements it
+    // Most residential solar installations provide 25-40% of total energy needs
+    const solarContribution = Math.min(solarGeneration, consumption * 0.4);
+    const netUsage = consumption - solarContribution;
     const currentCost = netUsage * gridPrice;
 
     // High usage alert
@@ -112,13 +118,13 @@ serve(async (req) => {
         });
     }
 
-    // Excellent solar production
-    if (solarGeneration > 6) {
+    // Good solar production (more realistic threshold)
+    if (solarGeneration > 3) {
       await supabase
         .from('demo_alerts')
         .insert({
-          title: 'Excellent Solar Production',
-          message: `Your solar panels are generating ${solarGeneration.toFixed(1)} kW - perfect conditions for energy storage!`,
+          title: 'Good Solar Production',
+          message: `Your solar panels are generating ${solarGeneration.toFixed(1)} kW, offsetting ${((solarContribution/consumption)*100).toFixed(0)}% of your current usage.`,
           severity: 'info'
         });
     }
@@ -147,6 +153,7 @@ serve(async (req) => {
       data: {
         consumption: consumption,
         solarGeneration: solarGeneration,
+        solarContribution: solarContribution,
         netUsage: netUsage,
         gridPrice: gridPrice,
         currentCost: currentCost,
