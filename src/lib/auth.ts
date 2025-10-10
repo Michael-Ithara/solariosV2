@@ -44,13 +44,14 @@ export const authService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    // Determine user role from metadata with fallback
-    const metaRole = (user.user_metadata as any)?.role as UserRole | undefined;
-    let role: UserRole = metaRole || 'user';
-    if (!metaRole) {
-      const adminEmails = ['admin@solarios.com', 'admin@example.com'];
-      role = adminEmails.includes(user.email || '') ? 'admin' : 'user';
-    }
+    // Get role from user_roles table
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    const role: UserRole = (roleData?.role as UserRole) || 'user';
 
     return { ...user, role };
   },
@@ -58,8 +59,7 @@ export const authService = {
   // Get user role
   getUserRole(user: AuthUser | null): UserRole {
     if (!user) return 'guest';
-    const metaRole = (user.user_metadata as any)?.role as UserRole | undefined;
-    return user.role || metaRole || 'user';
+    return user.role || 'user';
   },
 
   // Check if user has permission

@@ -27,7 +27,7 @@ import Onboarding from "./pages/Onboarding";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
   useLiveAchievements(); // Enable live achievement checking
 
   if (loading) {
@@ -52,6 +52,16 @@ function AppRoutes() {
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="*" element={<Navigate to="/onboarding" replace />} />
+      </Routes>
+    );
+  }
+
+  // Admin users - show only admin panel
+  if (user && role === 'admin') {
+    return (
+      <Routes>
+        <Route path="/admin" element={<div className="ml-20"><Admin /></div>} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     );
   }
@@ -111,14 +121,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="user">
             <div className="ml-20"><Settings /></div>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin" 
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <div className="ml-20"><Admin /></div>
           </ProtectedRoute>
         } 
       />

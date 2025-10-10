@@ -1325,6 +1325,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       weather_data: {
         Row: {
           cloud_cover_percent: number | null
@@ -1390,10 +1411,21 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       alert_severity: "info" | "warning" | "critical"
+      app_role: "admin" | "user"
       appliance_status: "on" | "off"
       forecast_target: "consumption" | "generation" | "savings"
       recommendation_priority: "low" | "medium" | "high"
@@ -1525,6 +1557,7 @@ export const Constants = {
   public: {
     Enums: {
       alert_severity: ["info", "warning", "critical"],
+      app_role: ["admin", "user"],
       appliance_status: ["on", "off"],
       forecast_target: ["consumption", "generation", "savings"],
       recommendation_priority: ["low", "medium", "high"],
