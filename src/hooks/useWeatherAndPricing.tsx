@@ -21,7 +21,7 @@ interface GridPricing {
 
 export function useWeatherAndPricing() {
   const { user } = useAuth();
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency, currency } = useCurrency();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [gridPrice, setGridPrice] = useState<GridPricing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,10 +131,17 @@ export function useWeatherAndPricing() {
     };
   }, [user]);
 
+  const formatPrice = (price: number) => {
+    // Convert from base rate to user's currency
+    const baseRate = 0.12; // USD base rate per kWh
+    const convertedPrice = (price / baseRate) * currency.rate;
+    return formatCurrency(convertedPrice);
+  };
+
   return {
     weather,
     gridPrice,
     loading,
-    formatPrice: (price: number) => formatCurrency(price)
+    formatPrice
   };
 }

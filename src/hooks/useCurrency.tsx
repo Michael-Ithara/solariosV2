@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useProfile } from './useProfile';
 
 export interface CurrencyInfo {
   code: string;
@@ -77,13 +78,30 @@ export const getCurrencyInfo = (countryCode: string): CurrencyInfo => {
 };
 
 export function useCurrency() {
+  const { profile, isLoading: profileLoading } = useProfile();
   const [currency, setCurrency] = useState<CurrencyInfo>(currencyMap.DEFAULT);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Use profile currency first, then auto-detect
   useEffect(() => {
+    if (profileLoading) return;
+
+    if (profile?.currency) {
+      // Find country code that matches profile currency
+      const countryCode = Object.keys(currencyMap).find(
+        code => code !== 'DEFAULT' && currencyMap[code].code === profile.currency
+      );
+      if (countryCode) {
+        setCurrency(currencyMap[countryCode]);
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    // Fallback to auto-detection if no profile currency
     detectUserLocation();
-  }, []);
+  }, [profile?.currency, profileLoading]);
 
   const detectUserLocation = async () => {
     try {
