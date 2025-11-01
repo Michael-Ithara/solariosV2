@@ -42,31 +42,50 @@ export default function Admin() {
     try {
       setLoading(true);
 
-      // Fetch total users count
-      const { count: userCount } = await supabase
+      // Use service role or RPC to bypass RLS for admin queries
+      // For now, we'll use the client with proper error handling
+      
+      // Fetch total users count - count all profiles
+      const { count: userCount, error: userError } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
-      // Fetch total appliances count
-      const { count: appliancesCount } = await supabase
+      if (userError) {
+        console.error('Error fetching user count:', userError);
+      }
+
+      // Fetch total appliances count - count all appliances across all users
+      const { count: appliancesCount, error: appliancesError } = await supabase
         .from('appliances')
         .select('*', { count: 'exact', head: true });
 
-      // Fetch total energy logged
-      const { data: energyData } = await supabase
+      if (appliancesError) {
+        console.error('Error fetching appliances count:', appliancesError);
+      }
+
+      // Fetch total energy logged - sum all energy consumption
+      const { data: energyData, error: energyError } = await supabase
         .from('energy_logs')
         .select('consumption_kwh');
       
+      if (energyError) {
+        console.error('Error fetching energy data:', energyError);
+      }
+      
       const totalEnergy = energyData?.reduce((sum, log) => sum + Number(log.consumption_kwh || 0), 0) || 0;
 
-      // Fetch active users (logged in within last 30 days)
+      // Fetch active users (updated profile within last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const { count: activeCount } = await supabase
+      const { count: activeCount, error: activeError } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .gte('updated_at', thirtyDaysAgo.toISOString());
+
+      if (activeError) {
+        console.error('Error fetching active users:', activeError);
+      }
 
       setStats({
         totalUsers: userCount || 0,
