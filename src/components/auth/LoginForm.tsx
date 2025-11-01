@@ -293,22 +293,6 @@ export function LoginForm({ onToggleMode, isSignUp }: LoginFormProps) {
               }
             </Button>
           </div>
-
-          {!isSignUp && (
-            <div className="text-center border-t pt-4">
-              <p className="text-sm text-muted-foreground mb-3">Demo Accounts for Testing:</p>
-              <div className="grid grid-cols-1 gap-2 text-xs">
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="font-medium text-primary">Admin Account</p>
-                  <p className="text-muted-foreground">admin@solarios.com / password123</p>
-                </div>
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="font-medium text-primary">User Account</p>
-                  <p className="text-muted-foreground">user@solarios.com / password123</p>
-                </div>
-              </div>
-            </div>
-          )}
         </form>
       </CardContent>
     </Card>

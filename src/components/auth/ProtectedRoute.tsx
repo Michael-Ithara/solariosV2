@@ -26,6 +26,13 @@ export function ProtectedRoute({
     );
   }
 
+  // Redirect to auth if not logged in
+  if (!user) {
+    window.location.href = '/auth';
+    return null;
+  }
+
+  // Check role-based permissions
   if (!hasPermission(requiredRole)) {
     if (fallback) {
       return <>{fallback}</>;
@@ -36,33 +43,24 @@ export function ProtectedRoute({
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 bg-warning/10 rounded-full flex items-center justify-center mb-4">
-              {requiredRole === 'admin' ? (
-                <Shield className="w-6 h-6 text-warning" />
-              ) : (
-                <Lock className="w-6 h-6 text-warning" />
-              )}
+              <Shield className="w-6 h-6 text-warning" />
             </div>
             <CardTitle>Access Restricted</CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-muted-foreground">
-              {requiredRole === 'admin' 
-                ? 'This area requires administrator privileges.'
-                : 'Please sign in to access this feature.'
-              }
+              This area requires {requiredRole} privileges.
             </p>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Your current role: <span className="font-medium capitalize">{role}</span></p>
               <p>Required role: <span className="font-medium capitalize">{requiredRole}</span></p>
             </div>
-            {role === 'guest' && (
-              <Button 
-                onClick={() => window.location.href = '/'}
-                className="w-full"
-              >
-                Go to Login
-              </Button>
-            )}
+            <Button 
+              onClick={() => window.location.href = '/dashboard'}
+              className="w-full"
+            >
+              Return to Dashboard
+            </Button>
           </CardContent>
         </Card>
       </div>

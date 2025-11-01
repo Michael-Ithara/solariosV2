@@ -69,64 +69,39 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Landing />} />
-      <Route path="/auth" element={<Auth />} />
+      <Route path="/auth" element={!user ? <Auth /> : <Navigate to="/dashboard" replace />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       
       {/* Demo route - accessible to everyone */}
       <Route path="/demo" element={<div className="ml-20"><EnhancedDemo /></div>} />
       
-      {/* Protected routes - require authentication */}
+      {/* Protected routes - redirect to auth if not authenticated */}
       <Route 
         path="/dashboard" 
-        element={
-          user ? (
-            <div className="ml-20"><Dashboard /></div>
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        } 
+        element={user ? <div className="ml-20"><Dashboard /></div> : <Navigate to="/auth" replace />} 
       />
       <Route 
         path="/appliances" 
-        element={
-          user ? (
-            <div className="ml-20"><Appliances /></div>
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        } 
+        element={user ? <div className="ml-20"><Appliances /></div> : <Navigate to="/auth" replace />} 
       />
       <Route 
         path="/analytics" 
-        element={
-          user ? (
-            <div className="ml-20"><Analytics /></div>
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        } 
+        element={user ? <div className="ml-20"><Analytics /></div> : <Navigate to="/auth" replace />} 
       />
       <Route 
         path="/insights" 
-        element={
-          user ? (
-            <div className="ml-20"><Insights /></div>
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        } 
+        element={user ? <div className="ml-20"><Insights /></div> : <Navigate to="/auth" replace />} 
       />
       <Route 
         path="/settings" 
-        element={
-          <ProtectedRoute requiredRole="user">
-            <div className="ml-20"><Settings /></div>
-          </ProtectedRoute>
-        } 
+        element={user ? <div className="ml-20"><Settings /></div> : <Navigate to="/auth" replace />} 
       />
       
-      {/* Catch-all route */}
-      <Route path="*" element={<div className="ml-20"><NotFound /></div>} />
+      {/* Catch-all route - redirect to auth for unauthenticated, 404 for authenticated */}
+      <Route 
+        path="*" 
+        element={user ? <div className="ml-20"><NotFound /></div> : <Navigate to="/auth" replace />} 
+      />
     </Routes>
   );
 }
