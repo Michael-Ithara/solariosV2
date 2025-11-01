@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -53,6 +54,7 @@ const STEPS = [
 ];
 
 export function OnboardingWizard() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const { state, setStepIndex, updateStepData, persist, reset } = useOnboarding();
   const currentStep = state.currentStepIndex;
@@ -309,14 +311,14 @@ export function OnboardingWizard() {
         console.error('Failed to set onboardingComplete metadata:', metaError);
       }
 
-      // Refresh session/user so route guards see the flag immediately
-      await refreshUser();
-
       // Clear local onboarding state
       reset();
 
-      // Navigate to dashboard
-      window.location.href = '/dashboard';
+      // Refresh session/user so route guards see the flag immediately
+      await refreshUser();
+
+      // Navigate to dashboard using React Router
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
     } finally {
