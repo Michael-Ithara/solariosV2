@@ -62,6 +62,13 @@ export const currencyMap: Record<string, CurrencyInfo> = {
   'ZA': { code: 'ZAR', symbol: 'R', name: 'South African Rand', rate: 1.80 },
   'NG': { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', rate: 65 },
   'EG': { code: 'EGP', symbol: '£', name: 'Egyptian Pound', rate: 3.50 },
+  'KE': { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', rate: 18 },
+  'GH': { code: 'GHS', symbol: 'GH₵', name: 'Ghanaian Cedi', rate: 1.20 },
+  'TZ': { code: 'TZS', symbol: 'TSh', name: 'Tanzanian Shilling', rate: 350 },
+  'UG': { code: 'UGX', symbol: 'USh', name: 'Ugandan Shilling', rate: 550 },
+  'MA': { code: 'MAD', symbol: 'د.م.', name: 'Moroccan Dirham', rate: 1.40 },
+  'ET': { code: 'ETB', symbol: 'Br', name: 'Ethiopian Birr', rate: 8.50 },
+  'RW': { code: 'RWF', symbol: 'FRw', name: 'Rwandan Franc', rate: 170 },
   
   // South America
   'BR': { code: 'BRL', symbol: 'R$', name: 'Brazilian Real', rate: 0.65 },
@@ -179,6 +186,9 @@ export function useCurrency() {
         
         // Africa
         'Africa/Johannesburg': 'ZA', 'Africa/Lagos': 'NG', 'Africa/Cairo': 'EG',
+        'Africa/Nairobi': 'KE', 'Africa/Accra': 'GH', 'Africa/Dar_es_Salaam': 'TZ',
+        'Africa/Kampala': 'UG', 'Africa/Casablanca': 'MA', 'Africa/Addis_Ababa': 'ET',
+        'Africa/Kigali': 'RW',
       };
       
       return timezoneToCountry[timezone] || null;

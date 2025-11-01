@@ -42,9 +42,13 @@ const COUNTRIES = [
   { code: 'AE', name: 'United Arab Emirates' }, { code: 'SA', name: 'Saudi Arabia' },
   { code: 'IL', name: 'Israel' }, { code: 'TR', name: 'Turkey' },
   { code: 'ZA', name: 'South Africa' }, { code: 'NG', name: 'Nigeria' },
-  { code: 'EG', name: 'Egypt' }, { code: 'BR', name: 'Brazil' },
-  { code: 'MX', name: 'Mexico' }, { code: 'AR', name: 'Argentina' },
-  { code: 'CL', name: 'Chile' }, { code: 'CO', name: 'Colombia' },
+  { code: 'EG', name: 'Egypt' }, { code: 'KE', name: 'Kenya' },
+  { code: 'GH', name: 'Ghana' }, { code: 'TZ', name: 'Tanzania' },
+  { code: 'UG', name: 'Uganda' }, { code: 'MA', name: 'Morocco' },
+  { code: 'ET', name: 'Ethiopia' }, { code: 'RW', name: 'Rwanda' },
+  { code: 'BR', name: 'Brazil' }, { code: 'MX', name: 'Mexico' },
+  { code: 'AR', name: 'Argentina' }, { code: 'CL', name: 'Chile' },
+  { code: 'CO', name: 'Colombia' },
 ];
 
 const TIMEZONES = [
@@ -102,6 +106,13 @@ const TIMEZONES = [
   { value: 'Africa/Johannesburg', label: 'Johannesburg' },
   { value: 'Africa/Lagos', label: 'Lagos' },
   { value: 'Africa/Cairo', label: 'Cairo' },
+  { value: 'Africa/Nairobi', label: 'Nairobi' },
+  { value: 'Africa/Accra', label: 'Accra' },
+  { value: 'Africa/Dar_es_Salaam', label: 'Dar es Salaam' },
+  { value: 'Africa/Kampala', label: 'Kampala' },
+  { value: 'Africa/Casablanca', label: 'Casablanca' },
+  { value: 'Africa/Addis_Ababa', label: 'Addis Ababa' },
+  { value: 'Africa/Kigali', label: 'Kigali' },
 ];
 
 const COMMON_RATES: Record<string, number> = {
@@ -110,33 +121,25 @@ const COMMON_RATES: Record<string, number> = {
   NO: 0.12, DK: 0.28, FI: 0.17, PL: 0.13, CZ: 0.13, PT: 0.21, GR: 0.19,
   IE: 0.28, JP: 0.19, KR: 0.12, CN: 0.08, IN: 0.12, SG: 0.17, HK: 0.13,
   TW: 0.10, MY: 0.09, TH: 0.12, ID: 0.10, PH: 0.11, VN: 0.08, AE: 0.09,
-  SA: 0.05, IL: 0.16, TR: 0.10, ZA: 0.10, NG: 0.15, EG: 0.08, BR: 0.13,
-  MX: 0.11, AR: 0.08, CL: 0.16, CO: 0.14,
+  SA: 0.05, IL: 0.16, TR: 0.10, ZA: 0.10, NG: 0.15, EG: 0.08, KE: 0.18,
+  GH: 0.12, TZ: 0.35, UG: 0.55, MA: 0.14, ET: 0.085, RW: 0.17,
+  BR: 0.13, MX: 0.11, AR: 0.08, CL: 0.16, CO: 0.14,
 };
 
 export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
-  const { currency, formatCurrency, formatRate, isLoading: currencyLoading, manuallySetCurrency } = useCurrency();
+  const { formatCurrency, formatRate } = useCurrency();
   const [formData, setFormData] = useState(data);
-
-  useEffect(() => {
-    if (currency && !formData.country) {
-      setFormData(prev => ({
-        ...prev,
-        currency: currency.code,
-        country: countries.find(c => c.code === (currency.code === 'USD' ? 'US' : (currency.code === 'CAD' ? 'CA' : (currency.code === 'GBP' ? 'GB' : 'US'))))?.code || 'US',
-        electricityRate: currency.rate,
-      }));
-    }
-  }, [currency, formData.country]);
+  const [currentCurrency, setCurrentCurrency] = useState(() => getCurrencyInfo(data.country || 'US'));
 
   const handleFieldChange = (field: string, value: string | number) => {
     const updated = { ...formData, [field]: value };
     
     // Update electricity rate and currency based on country
     if (field === 'country') {
-      updated.electricityRate = COMMON_RATES[value as string] || 0.12;
-      // Update currency to match selected country
-      manuallySetCurrency(value as string);
+      const currencyInfo = getCurrencyInfo(value as string);
+      updated.electricityRate = currencyInfo.rate;
+      updated.currency = currencyInfo.code;
+      setCurrentCurrency(currencyInfo);
     }
     
     setFormData(updated);
@@ -163,12 +166,7 @@ export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
             <Label htmlFor="country">Country/Region</Label>
             <Select
               value={formData.country}
-              onValueChange={(value) => {
-                const currencyInfo = getCurrencyInfo(value);
-                const next = { ...formData, country: value, currency: currencyInfo.code, electricityRate: currencyInfo.rate };
-                setFormData(next);
-                onUpdate(next);
-              }}
+              onValueChange={(value) => handleFieldChange('country', value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select your country" />
@@ -225,7 +223,7 @@ export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
                 <div>
                   <Label htmlFor="currency">Currency</Label>
                   <div className="text-sm text-muted-foreground mt-1">
-                    {currencyLoading ? 'Detecting...' : `Detected: ${currency?.name || 'USD'}`}
+                    {currentCurrency.name} ({currentCurrency.symbol})
                   </div>
                 </div>
 
@@ -263,15 +261,15 @@ export function LocationStep({ data, onUpdate, onNext }: LocationStepProps) {
               <div className="text-sm space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Currency:</span>
-                  <span>{currency?.name || 'US Dollar'}</span>
+                  <span>{currentCurrency.name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Symbol:</span>
-                  <span>{currency?.symbol || '$'}</span>
+                  <span>{currentCurrency.symbol}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Avg. Rate:</span>
-                  <span>{formatRate(COMMON_RATES[formData.country] || 0.12)}</span>
+                  <span>{formatRate(currentCurrency.rate)}</span>
                 </div>
               </div>
             </CardContent>
