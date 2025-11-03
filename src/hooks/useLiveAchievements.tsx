@@ -13,19 +13,64 @@ export function useLiveAchievements() {
   useEffect(() => {
     if (!user) return;
 
-    // Initial check after 5 seconds
+    // Initial check after 3 seconds
     const initialTimer = setTimeout(() => {
       checkAchievements();
-    }, 5000);
+    }, 3000);
 
-    // Check every 5 minutes
+    // Check every 2 minutes for more responsive updates
     const interval = setInterval(() => {
       checkAchievements();
-    }, 5 * 60 * 1000);
+    }, 2 * 60 * 1000);
+
+    // Subscribe to energy data changes to trigger checks
+    const energyChannel = supabase
+      .channel('energy-data-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'energy_logs',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          console.log('Energy data updated, checking achievements...');
+          checkAchievements();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'solar_data',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          console.log('Solar data updated, checking achievements...');
+          checkAchievements();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'real_time_energy_data',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          console.log('Real-time data updated, checking achievements...');
+          checkAchievements();
+        }
+      )
+      .subscribe();
 
     return () => {
       clearTimeout(initialTimer);
       clearInterval(interval);
+      supabase.removeChannel(energyChannel);
     };
   }, [user]);
 

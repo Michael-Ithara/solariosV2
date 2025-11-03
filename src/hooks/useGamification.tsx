@@ -54,28 +54,66 @@ export function useGamification() {
 
     fetchGamificationData();
 
-    // Subscribe to achievement updates
-    const channel = supabase
+    // Subscribe to achievement updates (INSERT and UPDATE)
+    const achievementChannel = supabase
       .channel('user-achievements-changes')
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'user_achievements',
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Achievement updated:', payload);
+          console.log('Achievement changed:', payload);
           fetchGamificationData();
           
           // Show toast if newly unlocked
-          if (payload.new.unlocked && !payload.old.unlocked) {
-            const achievement = achievements.find(a => a.id === payload.new.achievement_id);
-            if (achievement) {
+          if (payload.eventType === 'UPDATE' && payload.new.unlocked && !payload.old?.unlocked) {
+            // Fetch achievement details
+            supabase
+              .from('achievements')
+              .select('title, points')
+              .eq('id', payload.new.achievement_id)
+              .single()
+              .then(({ data }) => {
+                if (data) {
+                  toast({
+                    title: '🏅 Achievement Unlocked!',
+                    description: `${data.title} (+${data.points} XP)`,
+                  });
+                }
+              });
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to user_points updates
+    const pointsChannel = supabase
+      .channel('user-points-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_points',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Points updated:', payload);
+          if (payload.new) {
+            setTotalPoints(payload.new.points || 0);
+            setLevel(payload.new.level || 1);
+            setExperiencePoints(payload.new.xp || 0);
+            setNextLevelXP(payload.new.level * 100);
+            
+            // Show level up toast
+            if (payload.new.level > (payload.old?.level || 0)) {
               toast({
-                title: '🏅 New Achievement!',
-                description: `${achievement.title} (+${achievement.points} XP)`,
+                title: '🎉 Level Up!',
+                description: `You've reached level ${payload.new.level}!`,
               });
             }
           }
@@ -84,7 +122,8 @@ export function useGamification() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(achievementChannel);
+      supabase.removeChannel(pointsChannel);
     };
   }, [user]);
 

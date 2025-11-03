@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, processed: profiles.length }),
+      JSON.stringify({ success: true, processed: userIds.length }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
@@ -118,7 +118,7 @@ async function processCO2Tracking(userId: string, supabase: any) {
 }
 
 async function checkAchievements(userId: string, supabase: any) {
-  const criteria: AchievementCriteria[] = [
+const criteria: AchievementCriteria[] = [
     {
       code: 'eco_starter',
       checkFn: async (uid, sb) => {
@@ -193,6 +193,215 @@ async function checkAchievements(userId: string, supabase: any) {
           .limit(1);
 
         return { met: !!data && data.length > 0, progress: data && data.length > 0 ? 1 : 0 };
+      },
+    },
+    {
+      code: 'week_warrior',
+      checkFn: async (uid, sb) => {
+        // Check dashboard 7 days in a row (check if they have data for 7 consecutive days)
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+
+        const { data } = await sb
+          .from('energy_logs')
+          .select('logged_at')
+          .eq('user_id', uid)
+          .gte('logged_at', weekAgo.toISOString())
+          .order('logged_at', { ascending: true });
+
+        if (!data || data.length === 0) return { met: false, progress: 0 };
+
+        // Count unique days with activity
+        const uniqueDays = new Set(data.map(d => new Date(d.logged_at).toDateString())).size;
+        return { met: uniqueDays >= 7, progress: Math.min(uniqueDays, 7) };
+      },
+    },
+    {
+      code: 'peak_shifter',
+      checkFn: async (uid, sb) => {
+        // Reduce usage during peak hours (9am-9pm) by 20%
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        const { data: energyData } = await sb
+          .from('energy_logs')
+          .select('consumption_kwh, logged_at')
+          .eq('user_id', uid)
+          .gte('logged_at', weekAgo.toISOString());
+
+        if (!energyData || energyData.length < 50) return { met: false, progress: 0 };
+
+        // Calculate average peak vs off-peak
+        let peakSum = 0, offPeakSum = 0, peakCount = 0, offPeakCount = 0;
+        
+        energyData.forEach(log => {
+          const hour = new Date(log.logged_at).getHours();
+          if (hour >= 9 && hour <= 21) {
+            peakSum += log.consumption_kwh;
+            peakCount++;
+          } else {
+            offPeakSum += log.consumption_kwh;
+            offPeakCount++;
+          }
+        });
+
+        const peakAvg = peakCount > 0 ? peakSum / peakCount : 0;
+        const offPeakAvg = offPeakCount > 0 ? offPeakSum / offPeakCount : 0;
+        
+        // Check if peak usage is lower than off-peak (good!)
+        const reduction = peakAvg > 0 && offPeakAvg > 0 && peakAvg < offPeakAvg 
+          ? ((offPeakAvg - peakAvg) / offPeakAvg) * 100 
+          : 0;
+        
+        return { met: reduction >= 20, progress: Math.min(Math.floor(reduction), 20) };
+      },
+    },
+    {
+      code: 'solar_streak',
+      checkFn: async (uid, sb) => {
+        // Generate solar power for 7 consecutive days
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+
+        const { data } = await sb
+          .from('solar_data')
+          .select('generation_kwh, logged_at')
+          .eq('user_id', uid)
+          .gte('logged_at', weekAgo.toISOString())
+          .order('logged_at', { ascending: true });
+
+        if (!data || data.length === 0) return { met: false, progress: 0 };
+
+        // Count unique days with solar generation > 0
+        const daysWithSolar = new Set(
+          data
+            .filter(d => d.generation_kwh > 0)
+            .map(d => new Date(d.logged_at).toDateString())
+        ).size;
+
+        return { met: daysWithSolar >= 7, progress: Math.min(daysWithSolar, 7) };
+      },
+    },
+    {
+      code: 'co2_champion',
+      checkFn: async (uid, sb) => {
+        // Save 10kg of CO₂ total
+        const { data } = await sb
+          .from('co2_tracker')
+          .select('co2_saved_kg')
+          .eq('user_id', uid);
+
+        if (!data) return { met: false, progress: 0 };
+
+        const totalCO2 = data.reduce((sum, d) => sum + d.co2_saved_kg, 0);
+        return { met: totalCO2 >= 10, progress: Math.min(Math.floor(totalCO2), 10) };
+      },
+    },
+    {
+      code: 'energy_efficient',
+      checkFn: async (uid, sb) => {
+        // Maintain consumption below average for 14 days
+        const twoWeeksAgo = new Date();
+        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+        const { data } = await sb
+          .from('energy_logs')
+          .select('consumption_kwh, logged_at')
+          .eq('user_id', uid)
+          .gte('logged_at', twoWeeksAgo.toISOString());
+
+        if (!data || data.length < 20) return { met: false, progress: 0 };
+
+        const avgConsumption = data.reduce((sum, d) => sum + d.consumption_kwh, 0) / data.length;
+        
+        // Group by day and check if below average
+        const dailyData: Record<string, number[]> = {};
+        data.forEach(log => {
+          const day = new Date(log.logged_at).toDateString();
+          if (!dailyData[day]) dailyData[day] = [];
+          dailyData[day].push(log.consumption_kwh);
+        });
+
+        let daysBelow = 0;
+        Object.values(dailyData).forEach(dayLogs => {
+          const dayAvg = dayLogs.reduce((a, b) => a + b, 0) / dayLogs.length;
+          if (dayAvg < avgConsumption) daysBelow++;
+        });
+
+        return { met: daysBelow >= 14, progress: Math.min(daysBelow, 14) };
+      },
+    },
+    {
+      code: 'battery_master',
+      checkFn: async (uid, sb) => {
+        // Store and use 50 kWh from battery (track battery discharge)
+        const { data } = await sb
+          .from('real_time_energy_data')
+          .select('battery_level_percent')
+          .eq('user_id', uid)
+          .order('timestamp', { ascending: true });
+
+        if (!data || data.length < 2) return { met: false, progress: 0 };
+
+        // Calculate total battery usage by tracking decreases in battery level
+        let totalUsed = 0;
+        for (let i = 1; i < data.length; i++) {
+          const decrease = data[i-1].battery_level_percent - data[i].battery_level_percent;
+          if (decrease > 0) {
+            // Assuming 10kWh battery capacity (adjust as needed)
+            totalUsed += (decrease / 100) * 10;
+          }
+        }
+
+        return { met: totalUsed >= 50, progress: Math.min(Math.floor(totalUsed), 50) };
+      },
+    },
+    {
+      code: 'efficiency_master',
+      checkFn: async (uid, sb) => {
+        // Maintain 90%+ efficiency for 30 days
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
+
+        const { data: energyData } = await sb
+          .from('energy_logs')
+          .select('consumption_kwh, logged_at')
+          .eq('user_id', uid)
+          .gte('logged_at', monthAgo.toISOString());
+
+        const { data: solarData } = await sb
+          .from('solar_data')
+          .select('generation_kwh, logged_at')
+          .eq('user_id', uid)
+          .gte('logged_at', monthAgo.toISOString());
+
+        if (!energyData || !solarData || energyData.length < 50) return { met: false, progress: 0 };
+
+        // Group by day
+        const dailyEfficiency: Record<string, { consumption: number; solar: number }> = {};
+        
+        energyData.forEach(log => {
+          const day = new Date(log.logged_at).toDateString();
+          if (!dailyEfficiency[day]) dailyEfficiency[day] = { consumption: 0, solar: 0 };
+          dailyEfficiency[day].consumption += log.consumption_kwh;
+        });
+
+        solarData.forEach(log => {
+          const day = new Date(log.logged_at).toDateString();
+          if (!dailyEfficiency[day]) dailyEfficiency[day] = { consumption: 0, solar: 0 };
+          dailyEfficiency[day].solar += log.generation_kwh;
+        });
+
+        // Count days with 90%+ solar efficiency
+        let efficientDays = 0;
+        Object.values(dailyEfficiency).forEach(day => {
+          if (day.consumption > 0) {
+            const efficiency = (day.solar / day.consumption) * 100;
+            if (efficiency >= 90) efficientDays++;
+          }
+        });
+
+        return { met: efficientDays >= 30, progress: Math.min(efficientDays, 30) };
       },
     },
   ];

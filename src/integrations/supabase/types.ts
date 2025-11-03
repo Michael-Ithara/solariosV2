@@ -1422,6 +1422,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      initialize_user_achievements: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       alert_severity: "info" | "warning" | "critical"
