@@ -52,23 +52,31 @@ export function EnergyChart({ type = 'line', height = 300, simulationData }: Ene
           .order('logged_at', { ascending: false })
           .limit(24);
 
-        // Transform data for chart
+        // Transform data for chart with proper validation
         const chartData = energyLogs?.map((log, index) => {
           const time = new Date(log.logged_at).toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit' 
           });
-          const solar = solarData?.[index]?.generation_kwh || 0;
-          const consumption = log.consumption_kwh || 0;
-          const grid = Math.max(0, consumption - solar);
+          const solar = Number((solarData?.[index]?.generation_kwh || 0).toFixed(3));
+          const consumption = Number((log.consumption_kwh || 0).toFixed(3));
+          const grid = Number(Math.max(0, consumption - solar).toFixed(3));
 
           return {
             time,
-            solar: parseFloat(solar.toFixed(2)),
-            grid: parseFloat(grid.toFixed(2)),
-            consumption: parseFloat(consumption.toFixed(2))
+            solar,
+            grid,
+            consumption
           };
-        }).reverse() || [];
+        }).reverse().filter(d => 
+          d && 
+          typeof d.solar === 'number' && 
+          typeof d.grid === 'number' && 
+          typeof d.consumption === 'number' &&
+          !isNaN(d.solar) && 
+          !isNaN(d.grid) && 
+          !isNaN(d.consumption)
+        ) || [];
 
         setRealTimeData(chartData);
       } catch (error) {
