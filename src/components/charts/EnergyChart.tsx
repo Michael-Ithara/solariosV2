@@ -120,8 +120,13 @@ export function EnergyChart({ type = 'line', height = 300, simulationData }: Ene
     };
   }, [user, isSimulationMode]);
 
-  // Choose data source based on mode
-  const chartData = simulationData || (isSimulationMode ? mockData : realTimeData.length > 0 ? realTimeData : mockData);
+  // Choose data source based on mode and ensure we have at least 2 valid points
+  let chartData = simulationData || (isSimulationMode ? mockData : realTimeData.length >= 2 ? realTimeData : mockData);
+  
+  // Final validation: ensure we have valid data with at least 2 points for Area charts
+  if (!chartData || !Array.isArray(chartData) || chartData.length < 2) {
+    chartData = mockData;
+  }
   
   const ChartComponent = type === 'area' ? AreaChart : LineChart;
 
