@@ -18,8 +18,8 @@ async function getOnnxSession(): Promise<ort.InferenceSession | null> {
     // Configure wasm paths to CDN
     // deno-lint-ignore no-explicit-any
     (ort as any).env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/";
-    // Read model file from the function directory
-    const modelUrl = new URL('./daily_energy_model.onnx', import.meta.url);
+    // Read XGBoost model file from the function directory
+    const modelUrl = new URL('./xgboost_energy_model.onnx', import.meta.url);
     const modelBytes = await Deno.readFile(modelUrl);
     onnxSession = await ort.InferenceSession.create(modelBytes, { executionProviders: ['wasm'] });
     console.log('ONNX model loaded:', onnxSession?.inputNames, onnxSession?.outputNames);
@@ -239,8 +239,8 @@ serve(async (req) => {
     const confidence: 'high' | 'medium' | 'low' =
       Math.abs(growthRate) < 0.05 ? 'high' : Math.abs(growthRate) < 0.1 ? 'medium' : 'low';
 
-    // Try ONNX model for monthly consumption prediction (via daily prediction * 30)
-    let modelUsed: 'lovable-energy-v1' | 'onnx-daily-energy-v1' = 'lovable-energy-v1';
+    // Try XGBoost ONNX model for monthly consumption prediction (via daily prediction * 30)
+    let modelUsed: 'lovable-energy-v1' | 'xgboost-energy-v1' = 'lovable-energy-v1';
     let nextMonthConsumptionFinal = nextMonthConsumption;
     try {
       const onnxDaily = await runOnnxPrediction({
@@ -257,7 +257,7 @@ serve(async (req) => {
       });
       if (onnxDaily !== null) {
         nextMonthConsumptionFinal = Math.max(0, parseFloat((onnxDaily * 30).toFixed(2)));
-        modelUsed = 'onnx-daily-energy-v1';
+        modelUsed = 'xgboost-energy-v1';
       }
     } catch (_) { /* no-op */ }
     const nextMonthCostFinal = parseFloat((nextMonthConsumptionFinal * rate).toFixed(2));
