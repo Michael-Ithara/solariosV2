@@ -124,8 +124,23 @@ export function EnergyChart({ type = 'line', height = 300, simulationData }: Ene
   let chartData = simulationData || (isSimulationMode ? mockData : realTimeData.length >= 2 ? realTimeData : mockData);
   
   // Final validation: ensure we have valid data with at least 2 points for Area charts
+  // Also ensure all data points have all required fields
   if (!chartData || !Array.isArray(chartData) || chartData.length < 2) {
     chartData = mockData;
+  } else {
+    // Validate each data point has all required fields with valid numbers
+    chartData = chartData.filter(point => 
+      point &&
+      point.time !== undefined &&
+      typeof point.solar === 'number' && !isNaN(point.solar) &&
+      typeof point.grid === 'number' && !isNaN(point.grid) &&
+      typeof point.consumption === 'number' && !isNaN(point.consumption)
+    );
+    
+    // If filtering removed too many points, fall back to mock data
+    if (chartData.length < 2) {
+      chartData = mockData;
+    }
   }
   
   const ChartComponent = type === 'area' ? AreaChart : LineChart;
