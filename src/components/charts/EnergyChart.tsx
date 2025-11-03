@@ -78,7 +78,12 @@ export function EnergyChart({ type = 'line', height = 300, simulationData }: Ene
           !isNaN(d.consumption)
         ) || [];
 
-        setRealTimeData(chartData);
+        // Only set real-time data if we have at least 2 valid points
+        if (chartData.length >= 2) {
+          setRealTimeData(chartData);
+        } else {
+          setRealTimeData([]);
+        }
       } catch (error) {
         console.error('Error fetching energy data:', error);
       }
