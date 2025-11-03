@@ -55,8 +55,8 @@ export default function Analytics() {
         const consumption = energyRes.data?.reduce((sum, e) => sum + e.consumption_kwh, 0) || 0;
         const solar = solarRes.data?.reduce((sum, s) => sum + s.generation_kwh, 0) || 0;
 
-        setTotalConsumption(consumption);
-        setTotalSolar(solar);
+        setTotalConsumption(Number(consumption.toFixed(3)));
+        setTotalSolar(Number(solar.toFixed(3)));
       } catch (error) {
         console.error('Error fetching analytics data:', error);
       } finally {
@@ -70,16 +70,16 @@ export default function Analytics() {
   // Memoize analyticsData to prevent infinite re-renders
   const analyticsData = useMemo(() => ({
     timeRange: "7d",
-    totalConsumption,
-    totalProduction: totalSolar,
-    netExport: Math.max(0, totalSolar - totalConsumption),
+    totalConsumption: Number(totalConsumption.toFixed(3)),
+    totalProduction: Number(totalSolar.toFixed(3)),
+    netExport: Number(Math.max(0, totalSolar - totalConsumption).toFixed(3)),
     efficiency: totalSolar > 0 
-      ? ((totalSolar / (totalConsumption || 1)) * 100) 
+      ? Number(((totalSolar / (totalConsumption || 1)) * 100).toFixed(3))
       : 0,
     trends: {
-      consumption: -8.2,
-      production: 12.5,
-      efficiency: 3.1
+      consumption: Number((-8.2).toFixed(3)),
+      production: Number((12.5).toFixed(3)),
+      efficiency: Number((3.1).toFixed(3))
     },
     peakHours: {
       consumption: "18:00 - 20:00",
@@ -99,12 +99,12 @@ export default function Analytics() {
       {
         type: "info" as const,
         title: "Grid Export Opportunity", 
-        description: `You exported ${Math.max(0, totalSolar - totalConsumption).toFixed(1)} kWh to the grid`
+        description: `You exported ${Number(Math.max(0, totalSolar - totalConsumption).toFixed(3))} kWh to the grid`
       }
     ]
   }), [totalConsumption, totalSolar]);
 
-  const weeklyExportEarnings = useMemo(() => convertFromUSD(12.90), [convertFromUSD]);
+  const weeklyExportEarnings = useMemo(() => Number(convertFromUSD(12.90).toFixed(3)), [convertFromUSD]);
   
   if (isLoading || dataLoading) {
     return (
