@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Appliances from "./pages/Appliances";
 import Analytics from "./pages/Analytics";
 import Insights from "./pages/Insights";
+import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -91,6 +92,10 @@ function AppRoutes() {
       <Route 
         path="/insights" 
         element={user ? <div className="ml-20"><Insights /></div> : <Navigate to="/auth" replace />} 
+      />
+      <Route 
+        path="/reports" 
+        element={user ? <div className="ml-20"><Reports /></div> : <Navigate to="/auth" replace />} 
       />
       <Route 
         path="/settings" 

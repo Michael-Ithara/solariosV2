@@ -10,7 +10,8 @@ import {
   Shield,
   Menu,
   X,
-  Brain
+  Brain,
+  FileText
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -126,6 +127,7 @@ export function AppSidebar() {
         { title: "Appliances", url: "/appliances", icon: Zap, color: "from-yellow-500 to-orange-500" },
         { title: "Analytics", url: "/analytics", icon: BarChart3, color: "from-green-500 to-emerald-600" },
         { title: "AI Insights", url: "/insights", icon: Brain, color: "from-purple-500 to-violet-600" },
+        { title: "Reports", url: "/reports", icon: FileText, color: "from-cyan-500 to-blue-600" },
         { title: "Settings", url: "/settings", icon: Settings, color: "from-gray-500 to-gray-600" },
       ];
     }

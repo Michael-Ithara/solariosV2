@@ -1,5 +1,11 @@
 project_id = "omxvkzykghrcbvoyayjs"
 
+[functions.generate-csv-report]
+verify_jwt = true
+
+[functions.generate-pdf-report]
+verify_jwt = true
+
 [api]
 enabled = true
 port = 54321
