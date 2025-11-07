@@ -233,34 +233,56 @@ serve(async (req) => {
     let growthRate = firstHalf > 0 ? (secondHalf - firstHalf) / firstHalf : 0;
     growthRate = Math.max(-0.15, Math.min(0.15, growthRate));
 
+    // Use ONNX model for accurate consumption prediction
+    let modelUsed: 'lovable-energy-v1' | 'xgboost-energy-v1' = 'xgboost-energy-v1';
     const nextMonthConsumption = Math.max(0, parseFloat(((analysisData.usage.avgDailyConsumption || 0) * 30 * (1 + growthRate)).toFixed(2)));
     const nextMonthSolar = Math.max(0, parseFloat(((analysisData.usage.avgDailySolar || 0) * 30 * (1 + growthRate * 0.5)).toFixed(2)));
-    const nextMonthCost = parseFloat((nextMonthConsumption * rate).toFixed(2));
-    const confidence: 'high' | 'medium' | 'low' =
-      Math.abs(growthRate) < 0.05 ? 'high' : Math.abs(growthRate) < 0.1 ? 'medium' : 'low';
-
-    // Try XGBoost ONNX model for monthly consumption prediction (via daily prediction * 30)
-    let modelUsed: 'lovable-energy-v1' | 'xgboost-energy-v1' = 'lovable-energy-v1';
     let nextMonthConsumptionFinal = nextMonthConsumption;
-    try {
-      const onnxDaily = await runOnnxPrediction({
-        avgDailyConsumption: analysisData.usage.avgDailyConsumption || 0,
+    let nextMonthSolarFinal = nextMonthSolar;
+    
+    const onnxDailyConsumption = await runOnnxPrediction({
+      avgDailyConsumption: analysisData.usage.avgDailyConsumption || 0,
+      avgDailySolar: analysisData.usage.avgDailySolar || 0,
+      netUsage: analysisData.usage.netUsage || 0,
+      peakHour: analysisData.usage.peakUsageHour,
+      occupants: analysisData.profile.occupants || 1,
+      homeSize: analysisData.profile.homeSize,
+      solarCapacity: analysisData.profile.solarCapacity || 0,
+      batteryCapacity: analysisData.profile.batteryCapacity || 0,
+      electricityRate: analysisData.profile.electricityRate || 0.12,
+      growthRate,
+    });
+    
+    if (onnxDailyConsumption !== null) {
+      nextMonthConsumptionFinal = Math.max(0, parseFloat((onnxDailyConsumption * 30).toFixed(2)));
+    } else {
+      // Fallback to trend-based prediction only if ONNX fails
+      modelUsed = 'lovable-energy-v1';
+      console.warn('ONNX prediction failed, using trend-based fallback');
+    }
+    
+    // Predict solar generation with ONNX (if solar capacity exists)
+    if ((analysisData.profile.solarCapacity || 0) > 0) {
+      const onnxDailySolar = await runOnnxPrediction({
+        avgDailyConsumption: 0,
         avgDailySolar: analysisData.usage.avgDailySolar || 0,
-        netUsage: analysisData.usage.netUsage || 0,
-        peakHour: analysisData.usage.peakUsageHour,
+        netUsage: 0,
+        peakHour: 12,
         occupants: analysisData.profile.occupants || 1,
         homeSize: analysisData.profile.homeSize,
         solarCapacity: analysisData.profile.solarCapacity || 0,
         batteryCapacity: analysisData.profile.batteryCapacity || 0,
         electricityRate: analysisData.profile.electricityRate || 0.12,
-        growthRate,
+        growthRate: growthRate * 0.5,
       });
-      if (onnxDaily !== null) {
-        nextMonthConsumptionFinal = Math.max(0, parseFloat((onnxDaily * 30).toFixed(2)));
-        modelUsed = 'xgboost-energy-v1';
+      
+      if (onnxDailySolar !== null) {
+        nextMonthSolarFinal = Math.max(0, parseFloat((onnxDailySolar * 30).toFixed(2)));
       }
-    } catch (_) { /* no-op */ }
+    }
+    
     const nextMonthCostFinal = parseFloat((nextMonthConsumptionFinal * rate).toFixed(2));
+    const confidence: 'high' | 'medium' | 'low' = modelUsed === 'xgboost-energy-v1' ? 'high' : 'medium';
     // Build insights
     const insights = [] as Array<{ title: string; description: string; category: 'usage_pattern' | 'efficiency' | 'cost' | 'solar' }>;    
     if (analysisData.usage.peakUsageHour !== null) {
@@ -326,7 +348,7 @@ serve(async (req) => {
     const hasDishwasher = applianceNames.some(n => n.includes('dishwasher'));
     const hasWasher = applianceNames.some(n => n.includes('washer') || n.includes('laundry'));
 
-    // Build recommendations (snake_case fields as expected by the app)
+    // Build data-driven recommendations using ONNX model predictions
     const recommendations: Array<{
       title: string;
       description: string;
@@ -336,139 +358,215 @@ serve(async (req) => {
       category: string;
     }> = [];
 
-    // 1) Peak shifting - only if user has flexible appliances
-    if (analysisData.usage.peakUsageAmount && (hasDishwasher || hasWasher || hasEV)) {
-      const dailyPeakAvg = analysisData.usage.peakUsageAmount / 30;
-      const savingsKwh = parseFloat((dailyPeakAvg * 0.2 * 30).toFixed(2)); // 20% of peak hour load
-      const flexibleAppliances = [
-        hasDishwasher && 'dishwasher',
-        hasWasher && 'laundry',
-        hasEV && 'EV charging'
-      ].filter(Boolean).join(', ');
+    // Helper to simulate impact and calculate savings using ONNX model
+    const predictSavings = async (scenario: string, contextModifications: Partial<typeof analysisData>) => {
+      const baselineDaily = analysisData.usage.avgDailyConsumption;
+      const modifiedContext = {
+        avgDailyConsumption: contextModifications.usage?.avgDailyConsumption ?? analysisData.usage.avgDailyConsumption,
+        avgDailySolar: contextModifications.usage?.avgDailySolar ?? analysisData.usage.avgDailySolar,
+        netUsage: contextModifications.usage?.netUsage ?? analysisData.usage.netUsage,
+        peakHour: contextModifications.usage?.peakUsageHour ?? analysisData.usage.peakUsageHour,
+        occupants: contextModifications.profile?.occupants ?? analysisData.profile.occupants,
+        homeSize: contextModifications.profile?.homeSize ?? analysisData.profile.homeSize,
+        solarCapacity: contextModifications.profile?.solarCapacity ?? analysisData.profile.solarCapacity,
+        batteryCapacity: contextModifications.profile?.batteryCapacity ?? analysisData.profile.batteryCapacity,
+        electricityRate: contextModifications.profile?.electricityRate ?? analysisData.profile.electricityRate,
+        growthRate: 0, // Assume intervention stops growth
+      };
+
+      const predictedDaily = await runOnnxPrediction(modifiedContext);
+      if (predictedDaily === null) return null;
       
-      recommendations.push({
-        title: 'Shift peak-hour usage',
-        description: `Run ${flexibleAppliances} outside your peak hour to cut demand charges and reduce grid stress.`,
-        expected_savings_kwh: savingsKwh,
-        expected_savings_currency: parseFloat((savingsKwh * rate).toFixed(2)),
-        priority: 'high',
-        category: 'behavior',
-      });
+      const savingsDaily = Math.max(0, baselineDaily - predictedDaily);
+      const savingsMonthly = parseFloat((savingsDaily * 30).toFixed(2));
+      
+      return {
+        savingsKwh: savingsMonthly,
+        savingsCurrency: parseFloat((savingsMonthly * rate).toFixed(2)),
+      };
+    };
+
+    // 1) PEAK HOUR LOAD SHIFTING - Only recommend if peak usage is significant
+    if (analysisData.usage.peakUsageHour !== null && analysisData.usage.peakUsageAmount) {
+      const dailyPeakAvg = analysisData.usage.peakUsageAmount / 30;
+      
+      // Only recommend if peak represents >15% of daily consumption
+      if (dailyPeakAvg / analysisData.usage.avgDailyConsumption > 0.15) {
+        const flexibleAppliances = [
+          (hasDishwasher || hasWasher) && 'laundry appliances',
+          hasEV && 'EV charging',
+          hasPool && 'pool pump',
+          hasWaterHeater && 'water heater'
+        ].filter(Boolean).join(', ');
+        
+        if (flexibleAppliances) {
+          // Model peak reduction by simulating 20% reduction in daily usage
+          const savingsResult = await predictSavings('peak_shift', {
+            usage: {
+              avgDailyConsumption: analysisData.usage.avgDailyConsumption * 0.95, // 5% reduction from peak optimization
+            }
+          });
+          
+          if (savingsResult && savingsResult.savingsKwh > 5) {
+            recommendations.push({
+              title: `Shift ${flexibleAppliances} away from ${String(analysisData.usage.peakUsageHour).padStart(2, '0')}:00`,
+              description: `Your peak hour (${String(analysisData.usage.peakUsageHour).padStart(2, '0')}:00) accounts for ${(dailyPeakAvg / analysisData.usage.avgDailyConsumption * 100).toFixed(0)}% of daily usage. Shifting flexible loads reduces grid demand charges.`,
+              expected_savings_kwh: savingsResult.savingsKwh,
+              expected_savings_currency: savingsResult.savingsCurrency,
+              priority: savingsResult.savingsCurrency > 20 ? 'high' : 'medium',
+              category: 'behavior',
+            });
+          }
+        }
+      }
     }
 
-    // 2) Standby load reduction
-    const standbyKwh = parseFloat((totalConsumption * 0.03).toFixed(2)); // ~3% conservative
-    recommendations.push({
-      title: 'Eliminate standby loads',
-      description: 'Use smart plugs or power strips to fully turn off TVs, game consoles, and chargers when not in use.',
-      expected_savings_kwh: standbyKwh,
-      expected_savings_currency: parseFloat((standbyKwh * rate).toFixed(2)),
-      priority: standbyKwh > 10 ? 'medium' : 'low',
-      category: 'behavior',
-    });
-
-    // 3) Appliance upgrade target
-    const inefficient = appliances
-      .filter((a) => (a.power_rating_w || 0) >= 1500)
-      .sort((a, b) => (b.power_rating_w || 0) - (a.power_rating_w || 0))[0];
-    if (inefficient) {
-      const savingsKwh = parseFloat(((inefficient.power_rating_w / 1000) * 0.3 * 30).toFixed(2)); // estimate 30% savings if upgraded
-      recommendations.push({
-        title: `Upgrade or tune ${inefficient.name}`,
-        description: 'Consider a high-efficiency model or maintenance (clean filters, descale).',
-        expected_savings_kwh: savingsKwh,
-        expected_savings_currency: parseFloat((savingsKwh * rate).toFixed(2)),
-        priority: 'medium',
-        category: 'appliance',
+    // 2) APPLIANCE EFFICIENCY - Target specific high-consumption appliances
+    const highPowerAppliances = appliances
+      .filter(a => (a.power_rating_w || 0) >= 1000)
+      .sort((a, b) => (b.power_rating_w || 0) - (a.power_rating_w || 0));
+    
+    for (const appliance of highPowerAppliances.slice(0, 2)) {
+      const applianceDaily = (appliance.power_rating_w / 1000) * (appliance.usage_hours_per_day || 8) / 30;
+      
+      // Model efficiency improvement (e.g., 30% efficiency gain)
+      const savingsResult = await predictSavings('appliance_upgrade', {
+        usage: {
+          avgDailyConsumption: analysisData.usage.avgDailyConsumption - (applianceDaily * 0.3),
+        }
       });
-    }
-
-    // 4) Solar optimization or install assessment (contextual validation)
-    if ((analysisData.profile.solarCapacity || 0) > 0) {
-      const extraSelfUseKwh = parseFloat((Math.max(0, analysisData.usage.avgDailySolar - 0.5) * 0.1 * 30).toFixed(2));
-      // Only recommend solar optimization if conditions make sense (not at night, not heavily cloudy)
-      if (extraSelfUseKwh > 0 && !isNighttime) {
+      
+      if (savingsResult && savingsResult.savingsKwh > 10) {
+        const applianceType = appliance.name.toLowerCase();
+        let specificAdvice = 'Consider upgrading to an energy-efficient model.';
+        
+        if (applianceType.includes('hvac') || applianceType.includes('ac')) {
+          specificAdvice = 'Clean filters monthly, upgrade to inverter model, and set 1-2°C closer to ambient temp.';
+        } else if (applianceType.includes('water heater')) {
+          specificAdvice = 'Insulate the tank, lower temp to 50°C, and consider heat pump model.';
+        } else if (applianceType.includes('refrigerator') || applianceType.includes('fridge')) {
+          specificAdvice = 'Check door seals, defrost regularly, and upgrade to modern compressor.';
+        }
+        
         recommendations.push({
-          title: 'Improve solar self-consumption',
-          description: 'Time flexible loads during midday and consider a small battery to store excess.',
-          expected_savings_kwh: extraSelfUseKwh,
-          expected_savings_currency: parseFloat((extraSelfUseKwh * rate).toFixed(2)),
-          priority: 'low',
-          category: 'solar',
+          title: `Optimize ${appliance.name} (${appliance.power_rating_w}W)`,
+          description: `This device consumes ~${(applianceDaily * 30).toFixed(1)} kWh/month. ${specificAdvice}`,
+          expected_savings_kwh: savingsResult.savingsKwh,
+          expected_savings_currency: savingsResult.savingsCurrency,
+          priority: savingsResult.savingsCurrency > 30 ? 'high' : 'medium',
+          category: 'appliance',
         });
       }
-    } else if (isDaytime && !isCloudyOrRainy) {
-      // Only recommend solar installation during daytime with good weather
-      const solarKwh = parseFloat(((analysisData.usage.avgDailyConsumption || 0) * 0.25 * 30).toFixed(2));
-      recommendations.push({
-        title: 'Assess rooftop solar feasibility',
-        description: 'Based on usage, a modest solar system could offset ~25% of your consumption.',
-        expected_savings_kwh: solarKwh,
-        expected_savings_currency: parseFloat((solarKwh * rate).toFixed(2)),
-        priority: 'medium',
-        category: 'solar',
-      });
     }
 
-    // Add HVAC recommendation only if user has HVAC
-    if (hasHVAC && recommendations.length < 5) {
-      const hvacKwh = parseFloat((totalConsumption * 0.05).toFixed(2));
-      recommendations.push({
-        title: 'Optimize HVAC settings',
-        description: 'Set thermostat 1-2°C closer to ambient and use scheduled setbacks.',
-        expected_savings_kwh: hvacKwh,
-        expected_savings_currency: parseFloat((hvacKwh * rate).toFixed(2)),
-        priority: 'high',
-        category: 'behavior',
-      });
+    // 3) SOLAR OPTIMIZATION - Only if user has solar and suboptimal self-consumption
+    if ((analysisData.profile.solarCapacity || 0) > 0 && analysisData.usage.avgDailySolar > 0) {
+      const solarSelfConsumption = Math.min(analysisData.usage.avgDailySolar, analysisData.usage.avgDailyConsumption);
+      const solarExcess = Math.max(0, analysisData.usage.avgDailySolar - analysisData.usage.avgDailyConsumption);
+      
+      // If there's excess solar (>10% of generation), recommend battery or load shifting
+      if (solarExcess / analysisData.usage.avgDailySolar > 0.1 && isDaytime && !isCloudyOrRainy) {
+        const savingsResult = await predictSavings('solar_optimization', {
+          usage: {
+            avgDailyConsumption: analysisData.usage.avgDailyConsumption - (solarExcess * 0.7), // Capture 70% of excess
+            netUsage: analysisData.usage.netUsage - (solarExcess * 0.7 * 30),
+          }
+        });
+        
+        if (savingsResult && savingsResult.savingsKwh > 15) {
+          const storageAdvice = (analysisData.profile.batteryCapacity || 0) > 0 
+            ? 'Optimize battery charging schedule to store excess solar.' 
+            : 'Consider adding battery storage to capture excess solar production.';
+          
+          recommendations.push({
+            title: `Maximize solar self-consumption`,
+            description: `You're exporting ${(solarExcess * 30).toFixed(1)} kWh/month to the grid. ${storageAdvice} Shift high-load appliances to midday.`,
+            expected_savings_kwh: savingsResult.savingsKwh,
+            expected_savings_currency: savingsResult.savingsCurrency,
+            priority: savingsResult.savingsCurrency > 25 ? 'high' : 'medium',
+            category: 'solar',
+          });
+        }
+      }
+    } else if ((analysisData.profile.solarCapacity || 0) === 0 && analysisData.usage.avgDailyConsumption > 20) {
+      // Recommend solar installation only if high consumption and conditions are good
+      if (isDaytime && !isCloudyOrRainy && currentIrradiance > 400) {
+        const estimatedSolarDaily = analysisData.usage.avgDailyConsumption * 0.4; // 40% offset potential
+        
+        const savingsResult = await predictSavings('solar_install', {
+          usage: {
+            avgDailySolar: estimatedSolarDaily,
+            netUsage: analysisData.usage.netUsage - (estimatedSolarDaily * 30),
+          },
+          profile: {
+            solarCapacity: 5, // Assume 5kW system
+          }
+        });
+        
+        if (savingsResult && savingsResult.savingsKwh > 50) {
+          recommendations.push({
+            title: 'Consider rooftop solar installation',
+            description: `Based on your ${analysisData.usage.avgDailyConsumption.toFixed(1)} kWh/day usage and current irradiance (${currentIrradiance.toFixed(0)} W/m²), a ~5kW solar system could offset 40% of your consumption.`,
+            expected_savings_kwh: savingsResult.savingsKwh,
+            expected_savings_currency: savingsResult.savingsCurrency,
+            priority: savingsResult.savingsCurrency > 40 ? 'high' : 'medium',
+            category: 'solar',
+          });
+        }
+      }
     }
 
-    // Add water heater recommendation only if user has water heater
-    if (hasWaterHeater && recommendations.length < 5) {
-      const waterHeaterKwh = parseFloat((totalConsumption * 0.04).toFixed(2));
-      recommendations.push({
-        title: 'Schedule water heater',
-        description: 'Set timer to heat water during off-peak hours or when solar is abundant.',
-        expected_savings_kwh: waterHeaterKwh,
-        expected_savings_currency: parseFloat((waterHeaterKwh * rate).toFixed(2)),
-        priority: 'medium',
-        category: 'behavior',
+    // 4) BEHAVIOR-BASED - Only if growth rate is positive
+    if (growthRate > 0.05) {
+      const savingsResult = await predictSavings('behavior_change', {
+        usage: {
+          avgDailyConsumption: analysisData.usage.avgDailyConsumption * 0.93, // 7% reduction from behavior changes
+        }
       });
+      
+      if (savingsResult && savingsResult.savingsKwh > 10) {
+        recommendations.push({
+          title: `Reverse ${(growthRate * 100).toFixed(0)}% consumption increase`,
+          description: `Your usage has grown ${(growthRate * 100).toFixed(0)}% recently. Identify new devices or changes in habits. Check for phantom loads and reduce standby power.`,
+          expected_savings_kwh: savingsResult.savingsKwh,
+          expected_savings_currency: savingsResult.savingsCurrency,
+          priority: 'high',
+          category: 'behavior',
+        });
+      }
     }
 
-    // Add pool recommendation only if user has pool
-    if (hasPool && recommendations.length < 5) {
-      const poolKwh = parseFloat((totalConsumption * 0.06).toFixed(2));
-      recommendations.push({
-        title: 'Optimize pool pump schedule',
-        description: 'Run pool pump during solar peak hours (midday) instead of overnight.',
-        expected_savings_kwh: poolKwh,
-        expected_savings_currency: parseFloat((poolKwh * rate).toFixed(2)),
-        priority: 'medium',
-        category: 'behavior',
+    // 5) GRID PRICING OPTIMIZATION - Only if dynamic pricing is available
+    if (currentGridPrice && currentGridPrice.price_tier === 'peak') {
+      const savingsResult = await predictSavings('grid_timing', {
+        usage: {
+          avgDailyConsumption: analysisData.usage.avgDailyConsumption * 0.92, // 8% reduction from timing optimization
+        }
       });
-    }
-
-    // Generic recommendations if still need more
-    if (recommendations.length < 3) {
-      const lightingKwh = parseFloat((totalConsumption * 0.03).toFixed(2));
-      recommendations.push({
-        title: 'Upgrade to LED lighting',
-        description: 'Replace remaining incandescent bulbs with LEDs for 75% energy savings.',
-        expected_savings_kwh: lightingKwh,
-        expected_savings_currency: parseFloat((lightingKwh * rate).toFixed(2)),
-        priority: 'low',
-        category: 'upgrade',
-      });
+      
+      if (savingsResult && savingsResult.savingsKwh > 8) {
+        recommendations.push({
+          title: 'Optimize for time-of-use rates',
+          description: `Grid is currently at ${currentGridPrice.price_per_kwh.toFixed(2)} ${currency}/kWh (peak). Schedule high-consumption tasks during off-peak hours to reduce costs by ~15%.`,
+          expected_savings_kwh: savingsResult.savingsKwh,
+          expected_savings_currency: savingsResult.savingsCurrency,
+          priority: 'medium',
+          category: 'cost',
+        });
+      }
     }
 
     const analysisResult = {
       insights,
-      recommendations,
+      recommendations: recommendations.sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority] || 
+               b.expected_savings_currency - a.expected_savings_currency;
+      }).slice(0, 5), // Limit to top 5 recommendations
       forecast: {
         nextMonthConsumption: nextMonthConsumptionFinal,
         nextMonthCost: nextMonthCostFinal,
-        nextMonthSolar,
+        nextMonthSolar: nextMonthSolarFinal,
         confidence,
       },
     };
