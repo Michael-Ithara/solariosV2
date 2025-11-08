@@ -36,6 +36,8 @@ function arrayToCSV(data: any[], headers: string[]): string {
 }
 
 serve(async (req) => {
+  console.log('CSV Report Function - Request received:', req.method);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -44,11 +46,18 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
+    console.log('Environment check:', { 
+      hasUrl: !!supabaseUrl, 
+      hasKey: !!supabaseServiceKey 
+    });
+    
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Missing environment variables');
     }
 
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
@@ -59,11 +68,17 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
+    console.log('User authentication:', { 
+      userId: user?.id, 
+      hasError: !!authError 
+    });
+    
     if (authError || !user) {
       throw new Error('Unauthorized');
     }
 
     const params: ReportParams = await req.json();
+    console.log('Report parameters:', params);
     const { reportType, startDate, endDate, userId } = params;
 
     // Check if user is admin for admin reports
@@ -75,6 +90,8 @@ serve(async (req) => {
     
     const isAdmin = roleData?.role === 'admin';
     const targetUserId = (isAdmin && userId) ? userId : user.id;
+    
+    console.log('User role check:', { isAdmin, targetUserId });
 
     let csvContent = '';
     let filename = '';
@@ -91,8 +108,12 @@ serve(async (req) => {
         if (endDate) query = query.lte('logged_at', endDate);
 
         const { data, error } = await query.limit(10000);
-        if (error) throw error;
-
+        if (error) {
+          console.error('Error fetching energy logs:', error);
+          throw error;
+        }
+        
+        console.log(`Energy logs fetched: ${data?.length || 0} records`);
         csvContent = arrayToCSV(data || [], ['logged_at', 'consumption_kwh', 'appliance_id', 'created_at']);
         filename = `energy_logs_${new Date().toISOString().split('T')[0]}.csv`;
         break;
@@ -216,22 +237,31 @@ serve(async (req) => {
       }
 
       default:
+        console.error('Invalid report type:', reportType);
         throw new Error('Invalid report type');
     }
+
+    console.log('CSV generated successfully:', { 
+      filename, 
+      size: csvContent.length 
+    });
 
     return new Response(csvContent, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/csv',
+        'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });
 
   } catch (error) {
     console.error('Error generating CSV report:', error);
+    console.error('Error stack:', (error as Error).stack);
+    
     return new Response(JSON.stringify({ 
       error: (error as Error).message,
-      success: false 
+      success: false,
+      timestamp: new Date().toISOString()
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

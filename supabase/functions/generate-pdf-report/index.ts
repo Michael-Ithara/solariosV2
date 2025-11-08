@@ -184,6 +184,8 @@ function generateHTMLReport(data: any, reportType: string): string {
 }
 
 serve(async (req) => {
+  console.log('PDF Report Function - Request received:', req.method);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -192,11 +194,18 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
+    console.log('Environment check:', { 
+      hasUrl: !!supabaseUrl, 
+      hasKey: !!supabaseServiceKey 
+    });
+    
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Missing environment variables');
     }
 
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
@@ -206,11 +215,17 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
+    console.log('User authentication:', { 
+      userId: user?.id, 
+      hasError: !!authError 
+    });
+    
     if (authError || !user) {
       throw new Error('Unauthorized');
     }
 
     const params: ReportParams = await req.json();
+    console.log('Report parameters:', params);
     const { reportType, startDate, endDate } = params;
 
     // Fetch profile for currency
@@ -334,19 +349,28 @@ serve(async (req) => {
     }
 
     const htmlContent = generateHTMLReport(reportData, reportType);
+    
+    console.log('Report generated successfully:', { 
+      reportType, 
+      userId: user.id,
+      contentLength: htmlContent.length 
+    });
 
     return new Response(htmlContent, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/html',
+        'Content-Type': 'text/html; charset=utf-8',
       },
     });
 
   } catch (error) {
     console.error('Error generating PDF report:', error);
+    console.error('Error stack:', (error as Error).stack);
+    
     return new Response(JSON.stringify({ 
       error: (error as Error).message,
-      success: false 
+      success: false,
+      timestamp: new Date().toISOString()
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

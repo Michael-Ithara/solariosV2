@@ -40,31 +40,18 @@ export function ReportsPanel() {
 
     setIsGenerating(true);
     try {
-      const session = await supabase.auth.getSession();
-      if (!session.data.session) throw new Error('No session');
+      const { data, error } = await supabase.functions.invoke('generate-csv-report', {
+        body: {
+          reportType,
+          startDate: startDate?.toISOString(),
+          endDate: endDate?.toISOString(),
+        },
+      });
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-csv-report`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.data.session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            reportType,
-            startDate: startDate?.toISOString(),
-            endDate: endDate?.toISOString(),
-          }),
-        }
-      );
+      if (error) throw error;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate report');
-      }
-
-      const blob = await response.blob();
+      // Convert the response to a blob
+      const blob = new Blob([data], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -95,55 +82,36 @@ export function ReportsPanel() {
 
     setIsGenerating(true);
     try {
-      const session = await supabase.auth.getSession();
-      if (!session.data.session) throw new Error('No session');
+      const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
+        body: {
+          reportType: pdfType,
+          startDate: startDate?.toISOString(),
+          endDate: endDate?.toISOString(),
+        },
+      });
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-pdf-report`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.data.session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            reportType: pdfType,
-            startDate: startDate?.toISOString(),
-            endDate: endDate?.toISOString(),
-          }),
-        }
-      );
+      if (error) throw error;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate report');
-      }
-
-      const html = await response.text();
-      
-      // Open in new window for printing/saving as PDF
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-        
-        // Trigger print dialog after content loads
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-          }, 250);
-        };
-      }
+      // Create blob and download as HTML file
+      const blob = new Blob([data], { type: 'text/html' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${pdfType}_${format(new Date(), 'yyyy-MM-dd')}.html`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
       toast({
         title: 'Report Generated',
-        description: 'Your PDF report is ready. Use your browser\'s print function to save as PDF.',
+        description: 'Your report has been downloaded. Open it in your browser and print to PDF.',
       });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to generate PDF report',
+        description: error instanceof Error ? error.message : 'Failed to generate report',
         variant: 'destructive',
       });
     } finally {
