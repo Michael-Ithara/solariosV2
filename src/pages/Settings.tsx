@@ -1,6 +1,8 @@
 import { ProfileSettings } from "@/components/settings/ProfileSettings";
+import { HistoricalDataBackfill } from "@/components/admin/HistoricalDataBackfill";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ErrorBanner } from "@/components/ui/error-banner";
@@ -40,17 +42,30 @@ export default function Settings() {
         </p>
       </div>
 
-      <ProfileSettings />
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="data">Data Management</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="profile" className="space-y-6 mt-6">
+          <ProfileSettings />
 
-      <div className="flex items-center justify-between p-4 rounded-md border bg-muted/30">
-        <div>
-          <div className="font-medium">Reset Onboarding</div>
-          <div className="text-sm text-muted-foreground">Clear your onboarding progress and start over</div>
-        </div>
-        <Button onClick={handleResetOnboarding} disabled={resetting} variant="outline">
-          {resetting ? 'Resetting...' : 'Reset Onboarding'}
-        </Button>
-      </div>
+          <div className="flex items-center justify-between p-4 rounded-md border bg-muted/30">
+            <div>
+              <div className="font-medium">Reset Onboarding</div>
+              <div className="text-sm text-muted-foreground">Clear your onboarding progress and start over</div>
+            </div>
+            <Button onClick={handleResetOnboarding} disabled={resetting} variant="outline">
+              {resetting ? 'Resetting...' : 'Reset Onboarding'}
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="data" className="mt-6">
+          <HistoricalDataBackfill />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
