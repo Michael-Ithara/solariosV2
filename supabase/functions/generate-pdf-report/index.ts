@@ -697,7 +697,7 @@ function generateHTMLReport(data: any, reportType: string): string {
                   <tr>
                     <td><strong>${index + 1}. ${app.name}</strong></td>
                     <td>${app.power_rating_w}W</td>
-                    <td><strong>${app.total_kwh} kWh</strong></td>
+                    <td><strong>${Number(app.total_kwh).toFixed(2)} kWh</strong></td>
                     <td><span style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background: ${app.status === 'on' ? '#dcfce7' : '#f1f5f9'}; color: ${app.status === 'on' ? '#166534' : '#475569'};">${app.status.toUpperCase()}</span></td>
                   </tr>
                 `).join('') || '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-light);">No appliance data available for this period</td></tr>'}
@@ -932,13 +932,37 @@ serve(async (req) => {
 
       const { data: solarData } = await solarQuery;
 
-      // Fetch appliances
+      // Fetch appliances with calculated consumption from energy logs
       const { data: appliances } = await supabase
         .from('appliances')
-        .select('name, power_rating_w, total_kwh, status')
+        .select('id, name, power_rating_w, total_kwh, status')
         .eq('user_id', user.id)
-        .order('total_kwh', { ascending: false })
-        .limit(10);
+        .limit(50);
+
+      // Calculate actual consumption per appliance from energy_logs
+      const appliancesWithConsumption = await Promise.all((appliances || []).map(async (app) => {
+        let consumptionQuery = supabase
+          .from('energy_logs')
+          .select('consumption_kwh')
+          .eq('user_id', user.id)
+          .eq('appliance_id', app.id);
+
+        if (startDate) consumptionQuery = consumptionQuery.gte('logged_at', startDate);
+        if (endDate) consumptionQuery = consumptionQuery.lte('logged_at', endDate);
+
+        const { data: logs } = await consumptionQuery;
+        const calculatedConsumption = (logs || []).reduce((sum, log) => sum + Number(log.consumption_kwh), 0);
+        
+        // Use calculated consumption if available, otherwise use total_kwh
+        return {
+          ...app,
+          total_kwh: calculatedConsumption > 0 ? calculatedConsumption : Number(app.total_kwh || 0)
+        };
+      }));
+
+      const topAppliances = appliancesWithConsumption
+        .sort((a, b) => b.total_kwh - a.total_kwh)
+        .slice(0, 10);
 
       // Fetch CO2 data
       const { data: co2Data } = await supabase
@@ -973,7 +997,7 @@ serve(async (req) => {
         co2Saved: totalCO2.toFixed(2),
         totalCost: (totalConsumption * rate).toFixed(2),
         peakHour,
-        topAppliances: appliances || [],
+        topAppliances: topAppliances || [],
       };
     } else if (reportType === 'recommendations_report') {
       // Fetch recommendations

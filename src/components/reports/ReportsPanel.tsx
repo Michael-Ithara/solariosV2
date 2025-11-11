@@ -10,6 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Download, FileText, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export function ReportsPanel() {
   const { user, role } = useAuth();
@@ -92,20 +94,95 @@ export function ReportsPanel() {
 
       if (error) throw error;
 
-      // Create blob and download as HTML file
-      const blob = new Blob([data], { type: 'text/html' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${pdfType}_${format(new Date(), 'yyyy-MM-dd')}.html`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (!data) {
+        throw new Error('No HTML content received from server');
+      }
+
+      // Create a temporary container to render the HTML
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '210mm'; // A4 width
+      container.innerHTML = data;
+      document.body.appendChild(container);
+
+      toast({
+        title: 'Generating PDF',
+        description: 'Please wait while we create your PDF report...',
+      });
+
+      // Wait for fonts and images to load
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Generate PDF using html2canvas and jsPDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const coverPage = container.querySelector('.cover-page');
+      const contentWrapper = container.querySelector('.content-wrapper');
+      
+      // Render cover page
+      if (coverPage) {
+        const canvas = await html2canvas(coverPage as HTMLElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 210; // A4 width in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, Math.min(imgHeight, 297));
+      }
+
+      // Render content on new page
+      if (contentWrapper) {
+        pdf.addPage();
+        const canvas = await html2canvas(contentWrapper as HTMLElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 210;
+        const pageHeight = 297;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+      }
+
+      // Clean up
+      document.body.removeChild(container);
+
+      // Generate filename
+      const reportTypeLabel = pdfType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const dateStr = format(new Date(), 'yyyy-MM-dd');
+      const filename = `${reportTypeLabel}_${dateStr}.pdf`;
+
+      // Download the PDF
+      pdf.save(filename);
 
       toast({
         title: 'Report Generated',
-        description: 'Your report has been downloaded. Open it in your browser and print to PDF.',
+        description: 'Your PDF report has been downloaded successfully.',
       });
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -203,7 +280,7 @@ export function ReportsPanel() {
       <Card>
         <CardHeader>
           <CardTitle>PDF Reports</CardTitle>
-          <CardDescription>Generate comprehensive PDF reports for analysis and sharing</CardDescription>
+          <CardDescription>Generate professional, data-accurate PDF reports for presentation and analysis</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -221,7 +298,7 @@ export function ReportsPanel() {
                 </div>
                 <span className="text-xs text-muted-foreground text-left">
                   {type.value === 'comprehensive_analytics'
-                    ? 'Complete energy usage analysis with charts and metrics'
+                    ? 'Complete energy usage analysis with actual data and metrics'
                     : 'AI-powered recommendations and forecasts'}
                 </span>
               </Button>
