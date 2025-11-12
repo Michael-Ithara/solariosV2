@@ -137,11 +137,6 @@ export function InsightsPanel() {
                     <div className="text-sm text-muted-foreground">Estimated Cost</div>
                   </div>
                 </div>
-                <div className="mt-4 text-center">
-                  <Badge variant="outline" className="text-xs">
-                    {forecast.confidence.toUpperCase()} CONFIDENCE
-                  </Badge>
-                </div>
               </CardContent>
             </Card>
           )}

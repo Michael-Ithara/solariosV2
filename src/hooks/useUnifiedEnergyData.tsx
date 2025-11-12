@@ -69,6 +69,7 @@ export function useUnifiedEnergyData() {
     };
 
     const fetchDemoData = async () => {
+
       // Fetch demo energy logs
       const { data: demoLogs } = await supabase
         .from('demo_energy_logs')
@@ -83,21 +84,25 @@ export function useUnifiedEnergyData() {
         .order('logged_at', { ascending: false })
         .limit(24);
 
-      // Combine and transform
+      // Combine and transform, ensure all fields are valid numbers
       const combined = (demoLogs || []).map((log, idx) => {
-        const solar = demoSolar?.[idx]?.generation_kwh || 0;
-        const consumption = log.consumption_kwh || 0;
+        const solar = Number(demoSolar?.[idx]?.generation_kwh ?? 0);
+        const consumption = Number(log?.consumption_kwh ?? 0);
+        const grid = Math.max(0, consumption - solar);
         return {
-          time: new Date(log.logged_at).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }),
-          consumption,
-          solar,
-          grid: Math.max(0, consumption - solar),
-          timestamp: log.logged_at,
+          time: log?.logged_at ? new Date(log.logged_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
+          consumption: isNaN(consumption) ? 0 : consumption,
+          solar: isNaN(solar) ? 0 : solar,
+          grid: isNaN(grid) ? 0 : grid,
+          timestamp: log?.logged_at || '',
         };
-      });
+      }).filter(point =>
+        point &&
+        typeof point.solar === 'number' && !isNaN(point.solar) &&
+        typeof point.grid === 'number' && !isNaN(point.grid) &&
+        typeof point.consumption === 'number' && !isNaN(point.consumption) &&
+        point.time !== ''
+      );
 
       setEnergyData(combined.reverse());
 
@@ -122,6 +127,7 @@ export function useUnifiedEnergyData() {
     };
 
     const fetchUserData = async () => {
+
       // Fetch real-time energy data
       const { data: realtimeData } = await supabase
         .from('real_time_energy_data')
@@ -146,21 +152,25 @@ export function useUnifiedEnergyData() {
         .order('logged_at', { ascending: false })
         .limit(24);
 
-      // Combine and transform
+      // Combine and transform, ensure all fields are valid numbers
       const combined = (energyLogs || []).map((log, idx) => {
-        const solar = solarData?.[idx]?.generation_kwh || 0;
-        const consumption = log.consumption_kwh || 0;
+        const solar = Number(solarData?.[idx]?.generation_kwh ?? 0);
+        const consumption = Number(log?.consumption_kwh ?? 0);
+        const grid = Math.max(0, consumption - solar);
         return {
-          time: new Date(log.logged_at).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }),
-          consumption,
-          solar,
-          grid: Math.max(0, consumption - solar),
-          timestamp: log.logged_at,
+          time: log?.logged_at ? new Date(log.logged_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
+          consumption: isNaN(consumption) ? 0 : consumption,
+          solar: isNaN(solar) ? 0 : solar,
+          grid: isNaN(grid) ? 0 : grid,
+          timestamp: log?.logged_at || '',
         };
-      });
+      }).filter(point =>
+        point &&
+        typeof point.solar === 'number' && !isNaN(point.solar) &&
+        typeof point.grid === 'number' && !isNaN(point.grid) &&
+        typeof point.consumption === 'number' && !isNaN(point.consumption) &&
+        point.time !== ''
+      );
 
       setEnergyData(combined.reverse());
 

@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EnergyChart } from "@/components/charts/EnergyChart";
+import { EnergyInsightsSummary } from "@/components/charts/EnergyInsightsSummary";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -21,6 +22,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
+type Period = 'daily' | 'weekly' | 'monthly';
+
 export default function Analytics() {
   const { currency, formatCurrency, convertFromUSD } = useCurrency();
   const { energyData, metrics, isLoading } = useUnifiedEnergyData();
@@ -28,44 +31,115 @@ export default function Analytics() {
   const [totalConsumption, setTotalConsumption] = useState(0);
   const [totalSolar, setTotalSolar] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>('daily');
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [essr, setEssr] = useState(0);
+  const [solarTotal, setSolarTotal] = useState(0);
+  const [gridTotal, setGridTotal] = useState(0);
 
+  // Fetch totals and chart data based on selected period
   useEffect(() => {
     if (!user) {
       setDataLoading(false);
+      setChartData([]);
       return;
     }
 
-    const fetchTotals = async () => {
+    const fetchData = async () => {
+      setDataLoading(true);
+      setChartLoading(true);
       try {
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        let fromDate: Date;
+        let groupBy: 'hour' | 'day' | 'month';
+        if (period === 'daily') {
+          fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+          groupBy = 'hour';
+        } else if (period === 'weekly') {
+          fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          groupBy = 'day';
+        } else {
+          fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          groupBy = 'day';
+        }
 
+        // Fetch energy logs and solar data
         const [energyRes, solarRes] = await Promise.all([
           supabase
             .from('energy_logs')
-            .select('consumption_kwh')
+            .select('*')
             .eq('user_id', user.id)
-            .gte('logged_at', weekAgo.toISOString()),
+            .gte('logged_at', fromDate.toISOString()),
           supabase
             .from('solar_data')
-            .select('generation_kwh')
+            .select('*')
             .eq('user_id', user.id)
-            .gte('logged_at', weekAgo.toISOString())
+            .gte('logged_at', fromDate.toISOString())
         ]);
 
-        const consumption = energyRes.data?.reduce((sum, e) => sum + e.consumption_kwh, 0) || 0;
-        const solar = solarRes.data?.reduce((sum, s) => sum + s.generation_kwh, 0) || 0;
+        // Aggregate by groupBy
+        const energyLogs = energyRes.data || [];
+        const solarData = solarRes.data || [];
 
-        setTotalConsumption(Number(consumption.toFixed(3)));
-        setTotalSolar(Number(solar.toFixed(3)));
+        // Helper: group by hour or day
+        function getGroupKey(dateStr: string) {
+          const d = new Date(dateStr);
+          if (groupBy === 'hour') {
+            return d.getHours().toString().padStart(2, '0') + ':00';
+          } else if (groupBy === 'day') {
+            return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+          } else {
+            return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          }
+        }
+
+        // Aggregate energy logs
+        const grouped: Record<string, { consumption: number; solar: number; grid: number; count: number; } > = {};
+        energyLogs.forEach((log: any) => {
+          const key = getGroupKey(log.logged_at);
+          if (!grouped[key]) grouped[key] = { consumption: 0, solar: 0, grid: 0, count: 0 };
+          grouped[key].consumption += Number(log.consumption_kwh || 0);
+          grouped[key].count += 1;
+        });
+        solarData.forEach((log: any) => {
+          const key = getGroupKey(log.logged_at);
+          if (!grouped[key]) grouped[key] = { consumption: 0, solar: 0, grid: 0, count: 0 };
+          grouped[key].solar += Number(log.generation_kwh || 0);
+        });
+        // Calculate grid and format for chart
+        const chartArr = Object.entries(grouped).map(([time, val]) => {
+          const grid = Math.max(0, val.consumption - val.solar);
+          return {
+            time,
+            consumption: Number(val.consumption.toFixed(3)),
+            solar: Number(val.solar.toFixed(3)),
+            grid: Number(grid.toFixed(3)),
+          };
+        }).sort((a, b) => a.time.localeCompare(b.time));
+
+  setChartData(chartArr);
+
+  // Totals for metrics
+  const totalConsumption = chartArr.reduce((sum, d) => sum + d.consumption, 0);
+  const totalSolar = chartArr.reduce((sum, d) => sum + d.solar, 0);
+  const totalGrid = chartArr.reduce((sum, d) => sum + d.grid, 0);
+  setTotalConsumption(Number(totalConsumption.toFixed(3)));
+  setTotalSolar(Number(totalSolar.toFixed(3)));
+  setSolarTotal(Number(totalSolar.toFixed(3)));
+  setGridTotal(Number(totalGrid.toFixed(3)));
+  // Calculate ESSR
+  setEssr(totalConsumption > 0 ? Math.round((totalSolar / totalConsumption) * 100) : 0);
       } catch (error) {
         console.error('Error fetching analytics data:', error);
+        setChartData([]);
       } finally {
         setDataLoading(false);
+        setChartLoading(false);
       }
     };
 
-    fetchTotals();
-  }, [user]);
+    fetchData();
+  }, [user, period]);
   
   // Memoize analyticsData to prevent infinite re-renders
   const analyticsData = useMemo(() => ({
@@ -124,15 +198,14 @@ export default function Analytics() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Select defaultValue="7d">
+          <Select value={period} onValueChange={val => setPeriod(val as Period)}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="24h">Last 24h</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline">
@@ -196,20 +269,38 @@ export default function Analytics() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <EnergyChart type="line" height={300} />
+            {chartLoading ? (
+              <div className="flex items-center justify-center h-[300px]">Loading data…</div>
+            ) : (
+              <EnergyChart type="line" height={300} simulationData={chartData} />
+            )}
           </CardContent>
         </Card>
 
-        {/* Area Chart */}
+        {/* Energy Insights Summary (Donut Chart) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Energy Production Mix
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              Energy Insights Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <EnergyChart type="area" height={300} />
+            {chartLoading ? (
+              <div className="flex items-center justify-center h-[300px]">Loading data…</div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[300px] relative">
+                <EnergyInsightsSummary
+                  solar={solarTotal}
+                  grid={gridTotal}
+                  essr={essr}
+                  periodLabel={period === 'daily' ? 'Today' : period === 'weekly' ? 'This Week' : 'This Month'}
+                />
+                <div className="mt-4 text-center text-muted-foreground text-xs">
+                  <span className="font-semibold text-green-600">{essr}%</span> of your energy needs were met by solar ({solarTotal} kWh solar, {gridTotal} kWh grid)
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
