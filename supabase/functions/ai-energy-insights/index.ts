@@ -10,7 +10,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ONNX model lazy loader (global across invocations)
+// ONNX model lazy loader
 let onnxSession: ort.InferenceSession | null = null;
 let onnxInitError: string | null = null;
 
@@ -18,16 +18,13 @@ async function getOnnxSession(): Promise<ort.InferenceSession | null> {
   if (onnxSession || onnxInitError) return onnxSession;
   console.log('getOnnxSession called. onnxSession:', !!onnxSession, 'onnxInitError:', onnxInitError);
   try {
-    // Configure wasm paths to CDN
-    // deno-lint-ignore no-explicit-any
     (ort as any).env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/";
-    // Read XGBoost model file from the function directory
     const modelUrl = new URL('./xgboost_energy_model.onnx', import.meta.url);
     const response = await fetch(modelUrl.toString());
     if (!response.ok) throw new Error(`Failed to fetch ONNX model: ${response.statusText}`);
     const modelBytes = new Uint8Array(await response.arrayBuffer());
     onnxSession = await ort.InferenceSession.create(modelBytes, { executionProviders: ['wasm'] });
-    console.log('ONNX model loaded:', onnxSession?.inputNames, onnxSession?.outputNames);
+    console.log('ONNX model loaded');
   } catch (e) {
     onnxInitError = (e as any)?.message ?? String(e);
     console.error('Failed to initialize ONNX model:', onnxInitError);
@@ -36,40 +33,17 @@ async function getOnnxSession(): Promise<ort.InferenceSession | null> {
   return onnxSession;
 }
 
-function buildFeatureVector(d: number, context: {
-  avgDailyConsumption: number;
-  avgDailySolar: number;
-  netUsage: number;
-  peakHour: number | null;
-  occupants: number;
-  homeSize: number | 'unknown';
-  solarCapacity: number;
-  batteryCapacity: number;
-  electricityRate: number;
-  growthRate: number;
-}): Float32Array {
+function buildFeatureVector(d: number, context: any): Float32Array {
   const norm = (v: number, s: number) => (isFinite(v) ? v / (s || 1) : 0);
   const features: number[] = [
-    context.avgDailyConsumption,
-    context.avgDailySolar,
-    context.netUsage,
-    norm(context.peakHour ?? 0, 23),
-    context.occupants,
+    context.avgDailyConsumption, context.avgDailySolar, context.netUsage,
+    norm(context.peakHour ?? 0, 23), context.occupants,
     typeof context.homeSize === 'number' ? norm(context.homeSize, 3000) : 0,
-    context.solarCapacity,
-    context.batteryCapacity,
-    context.electricityRate,
-    context.growthRate,
-    // temporal features
-    new Date().getMonth() / 11,
-    [0,6].includes(new Date().getDay()) ? 1 : 0,
+    context.solarCapacity, context.batteryCapacity, context.electricityRate, context.growthRate,
+    new Date().getMonth() / 11, [0,6].includes(new Date().getDay()) ? 1 : 0,
   ];
-  // Pad or trim to match expected length
-  if (features.length < d) {
-    while (features.length < d) features.push(0);
-  } else if (features.length > d) {
-    features.length = d;
-  }
+  if (features.length < d) while (features.length < d) features.push(0);
+  else if (features.length > d) features.length = d;
   return new Float32Array(features);
 }
 
@@ -78,7 +52,6 @@ async function runOnnxPrediction(context: any): Promise<number | null> {
   if (!session) return null;
   try {
     const inputName = session.inputNames[0];
-    // Find feature dimension (assume [1, d] or [d])
     const meta = session.inputMetadata[inputName as keyof typeof session.inputMetadata];
     const dims = (meta as any)?.dimensions ?? [1, 12];
     const d = Math.max(1, (dims.length === 1 ? dims[0] : dims[dims.length - 1]) || 12);
@@ -97,186 +70,121 @@ async function runOnnxPrediction(context: any): Promise<number | null> {
   }
 }
 
-interface Profile {
-  home_size_sqft: number | 'unknown';
-  occupants: number;
-  solar_panel_capacity: number;
-  battery_capacity: number;
-  electricity_rate: number;
-  currency?: string;
-}
-
-interface Usage {
-  avgDailyConsumption: number;
-  avgDailySolar: number;
-  netUsage: number;
-  peakUsageHour: number | null;
-  peakUsageAmount: number | null;
-}
-
-interface Appliance {
-  name: string;
-  power_rating_w: number;
-  total_kwh: number;
-  usage_hours_per_day?: number;
-}
-
-interface WeatherData {
-  weather_condition?: string;
-  solar_irradiance_wm2?: number;
-}
-
-interface GridPrice {
-  price_per_kwh: number;
-  price_tier: string;
-}
-
-interface Insight {
-  title: string;
-  description: string;
-  category: 'usage_pattern' | 'efficiency' | 'cost' | 'solar';
-}
-
-interface Recommendation {
-  title: string;
-  description: string;
-  expected_savings_kwh: number;
-  expected_savings_currency: number;
-  priority: 'high' | 'medium' | 'low';
+// Nudge Templates with 4-Part Structure
+interface NudgeTemplate {
+  scenario: string;
+  actionVerb: string;
+  specificItem: (ctx: any) => string;
+  contextWhen: (ctx: any) => string;
+  benefitWhy: (ctx: any) => string;
   category: string;
+  priority: 'high' | 'medium' | 'low';
 }
 
-interface AnalysisData {
-  profile: {
-    homeSize: number | 'unknown';
-    occupants: number;
-    solarCapacity: number;
-    batteryCapacity: number;
-    electricityRate: number;
-  };
-  usage: Usage;
-  appliances: Array<{
-    name: string;
-    power: number;
-    efficiency: number;
-  }>;
-  monthlyCost: number;
-}
+const nudgeTemplates: NudgeTemplate[] = [
+  {
+    scenario: 'peak_shift', actionVerb: 'Shift',
+    specificItem: (ctx) => ctx.flexibleAppliances || 'your dishwasher and laundry',
+    contextWhen: (ctx) => `away from ${ctx.peakHour}:00 to off-peak hours`,
+    benefitWhy: (ctx) => `You'll save ${ctx.savingsCurrency?.toLocaleString('en-US', { style: 'currency', currency: ctx.currency || 'USD' })} this month`,
+    category: 'behavior', priority: 'high'
+  },
+  {
+    scenario: 'appliance_upgrade', actionVerb: 'Replace',
+    specificItem: (ctx) => `your ${ctx.applianceName}`,
+    contextWhen: (ctx) => 'with an energy-efficient model',
+    benefitWhy: (ctx) => `It will save ${ctx.savingsCurrency?.toLocaleString('en-US', { style: 'currency', currency: ctx.currency || 'USD' })} every month`,
+    category: 'appliance', priority: 'medium'
+  },
+  {
+    scenario: 'lights_off', actionVerb: 'Turn off',
+    specificItem: (ctx) => `the ${ctx.roomName || 'living room'} light`,
+    contextWhen: (ctx) => 'when you leave',
+    benefitWhy: (ctx) => `It wastes ${ctx.savingsCurrency?.toLocaleString('en-US', { style: 'currency', currency: ctx.currency || 'USD' })} a month`,
+    category: 'behavior', priority: 'low'
+  },
+  {
+    scenario: 'solar_timing', actionVerb: 'Run',
+    specificItem: (ctx) => ctx.applianceName || 'your dishwasher',
+    contextWhen: (ctx) => 'during midday',
+    benefitWhy: (ctx) => 'Your solar panels generate the most power then',
+    category: 'solar', priority: 'medium'
+  },
+  {
+    scenario: 'thermostat_adjust', actionVerb: 'Lower',
+    specificItem: (ctx) => 'your heat',
+    contextWhen: (ctx) => `by ${ctx.degrees || 2} degrees tonight`,
+    benefitWhy: (ctx) => `You'll save ${ctx.savingsCurrency?.toLocaleString('en-US', { style: 'currency', currency: ctx.currency || 'USD' })} this week`,
+    category: 'behavior', priority: 'high'
+  },
+  {
+    scenario: 'solar_optimization', actionVerb: 'Charge',
+    specificItem: (ctx) => 'your battery',
+    contextWhen: (ctx) => 'during peak solar hours (11 AM - 2 PM)',
+    benefitWhy: (ctx) => `You'll use ${ctx.savingsCurrency?.toLocaleString('en-US', { style: 'currency', currency: ctx.currency || 'USD' })} less grid power this month`,
+    category: 'solar', priority: 'high'
+  },
+];
 
-interface AnalysisResult {
-  insights: Insight[];
-  recommendations: Recommendation[];
-  forecast: {
-    nextMonthConsumption: number;
-    nextMonthCost: number;
-    nextMonthSolar: number;
-    confidence: 'high' | 'medium' | 'low';
-  };
-}
+const renderNudge = (template: NudgeTemplate, context: any): string => {
+  return `${template.actionVerb} ${template.specificItem(context)} ${template.contextWhen(context)}. ${template.benefitWhy(context)}.`;
+};
 
-serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Required environment variables are missing');
-    }
+    const authHeader = req.headers.get('Authorization')!;
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
-    const { userId }: { userId: string } = await req.json();
-    
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
 
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const userId = user.id;
 
-    // Fetch user's energy data for analysis from unified tables
+    // Fetch data
     const [energyLogsRes, solarDataRes, appliancesRes, profileRes, weatherRes, gridPriceRes] = await Promise.all([
-      supabase
-        .from('energy_logs')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('logged_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
-        .order('logged_at', { ascending: false })
-        .limit(200),
-      supabase
-        .from('solar_data')
-        .select('*')
-        .eq('user_id', userId)
+      supabase.from('energy_logs').select('*').eq('user_id', userId)
         .gte('logged_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-        .order('logged_at', { ascending: false })
-        .limit(200),
-      supabase
-        .from('appliances')
-        .select('*')
-        .eq('user_id', userId),
-      supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single(),
-      supabase
-        .from('weather_data')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('grid_prices')
-        .select('*')
-        .eq('user_id', userId)
-        .order('timestamp', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+        .order('logged_at', { ascending: false }).limit(200),
+      supabase.from('solar_data').select('*').eq('user_id', userId)
+        .gte('logged_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('logged_at', { ascending: false }).limit(200),
+      supabase.from('appliances').select('*').eq('user_id', userId),
+      supabase.from('profiles').select('*').eq('user_id', userId).single(),
+      supabase.from('weather_data').select('*').order('timestamp', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('grid_prices').select('*').eq('user_id', userId).order('timestamp', { ascending: false }).limit(1).maybeSingle()
     ]);
 
     const energyLogs: any[] = energyLogsRes.data || [];
     const solarData: any[] = solarDataRes.data || [];
-    const appliances: Appliance[] = appliancesRes.data || [];
-    const profile: Profile | null = profileRes.data;
-    const currentWeather: WeatherData | null = weatherRes.data;
-    const currentGridPrice: GridPrice | null = gridPriceRes.data;
+    const appliances: any[] = appliancesRes.data || [];
+    const profile: any = profileRes.data;
+    const currentWeather: any = weatherRes.data;
 
-    // Contextual validation helpers
-    const currentHour: number = new Date().getHours();
-    const isDaytime: boolean = currentHour >= 6 && currentHour <= 18;
-    const isNighttime: boolean = !isDaytime;
-    const isCloudyOrRainy: boolean = !!(currentWeather?.weather_condition && 
-      ['cloudy', 'rainy', 'overcast'].includes(currentWeather.weather_condition.toLowerCase()));
-    const currentIrradiance: number = currentWeather?.solar_irradiance_wm2 || 0;
+    const currentHour = new Date().getHours();
+    const isDaytime = currentHour >= 6 && currentHour <= 18;
 
-    // Calculate analytics for AI analysis
-    const totalConsumption: number = energyLogs.reduce((sum: number, log: any) => sum + log.consumption_kwh, 0);
-    const avgDailyConsumption: number = totalConsumption / 30;
-    const totalSolarGeneration: number = solarData.reduce((sum: number, data: any) => sum + data.generation_kwh, 0);
-    const avgDailySolar: number = totalSolarGeneration / 30;
-    const netUsage: number = totalConsumption - totalSolarGeneration;
+    // Analytics
+    const totalConsumption = energyLogs.reduce((sum, log) => sum + log.consumption_kwh, 0);
+    const avgDailyConsumption = totalConsumption / 30;
+    const totalSolarGeneration = solarData.reduce((sum, data) => sum + data.generation_kwh, 0);
+    const avgDailySolar = totalSolarGeneration / 30;
+    const netUsage = totalConsumption - totalSolarGeneration;
     
-    // Peak usage analysis
-    const hourlyUsage: Record<number, number> = energyLogs.reduce((acc: Record<number, number>, log: any) => {
+    const hourlyUsage: Record<number, number> = energyLogs.reduce((acc, log) => {
       const hour = new Date(log.logged_at).getHours();
       acc[hour] = (acc[hour] || 0) + log.consumption_kwh;
       return acc;
     }, {});
     
-    const peakHour: [string, number] | undefined = Object.entries(hourlyUsage).sort(([,a]: [any, any], [,b]: [any, any]) => (b as number) - (a as number))[0];
+    const peakHour = Object.entries(hourlyUsage).sort(([,a], [,b]) => (b as number) - (a as number))[0];
     
-    // Appliance efficiency analysis
-    const applianceUsage: Array<{ name: string; power: number; efficiency: number }> = appliances.map((app: Appliance) => ({
-      name: app.name,
-      power: app.power_rating_w,
-      efficiency: app.power_rating_w > 0 ? (app.total_kwh / 30) / (app.power_rating_w / 1000) : 0
-    }));
-
-    // Prepare data for AI analysis
-    const analysisData: AnalysisData = {
+    const analysisData = {
       profile: {
         homeSize: profile?.home_size_sqft || 'unknown',
         occupants: profile?.occupants || 1,
@@ -291,39 +199,32 @@ serve(async (req: Request): Promise<Response> => {
         peakUsageHour: peakHour ? parseInt(peakHour[0]) : null,
         peakUsageAmount: peakHour ? parseFloat((peakHour[1] as number).toFixed(2)) : null
       },
-      appliances: applianceUsage,
       monthlyCost: parseFloat((totalConsumption * (profile?.electricity_rate || 0.12)).toFixed(2))
     };
 
-    // Generate insights using built-in rule-based engine (no external APIs)
-    const rate: number = analysisData.profile.electricityRate || 0.12;
+    const rate = analysisData.profile.electricityRate || 0.12;
+    const currency = profile?.currency || 'USD';
 
-    // Compute 15-day usage trend
-    const now: number = Date.now();
-    const thirtyDaysAgo: number = now - 30 * 24 * 60 * 60 * 1000;
-    const fifteenDaysAgo: number = now - 15 * 24 * 60 * 60 * 1000;
+    // Growth rate calculation
+    const now = Date.now();
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const fifteenDaysAgo = now - 15 * 24 * 60 * 60 * 1000;
+    const sumInRange = (logs: any[], start: number, end: number) =>
+      logs.filter((l) => {
+        const t = new Date(l.logged_at).getTime();
+        return t >= start && t < end;
+      }).reduce((s, l) => s + (Number(l.consumption_kwh) || 0), 0);
 
-    const sumInRange = (logs: any[], start: number, end: number): number =>
-      logs
-        .filter((l: any) => {
-          const t = new Date(l.logged_at).getTime();
-          return t >= start && t < end;
-        })
-        .reduce((s: number, l: any) => s + (Number(l.consumption_kwh) || 0), 0);
-
-    const firstHalf: number = sumInRange(energyLogs, thirtyDaysAgo, fifteenDaysAgo);
-    const secondHalf: number = sumInRange(energyLogs, fifteenDaysAgo, now);
-    let growthRate: number = firstHalf > 0 ? (secondHalf - firstHalf) / firstHalf : 0;
+    const firstHalf = sumInRange(energyLogs, thirtyDaysAgo, fifteenDaysAgo);
+    const secondHalf = sumInRange(energyLogs, fifteenDaysAgo, now);
+    let growthRate = firstHalf > 0 ? (secondHalf - firstHalf) / firstHalf : 0;
     growthRate = Math.max(-0.15, Math.min(0.15, growthRate));
 
-    // Use ONNX model for accurate consumption prediction
-    let modelUsed: 'lovable-energy-v1' | 'xgboost-energy-v1' = 'xgboost-energy-v1';
-    const nextMonthConsumption: number = Math.max(0, parseFloat(((analysisData.usage.avgDailyConsumption || 0) * 30 * (1 + growthRate)).toFixed(2)));
-    const nextMonthSolar: number = Math.max(0, parseFloat(((analysisData.usage.avgDailySolar || 0) * 30 * (1 + growthRate * 0.5)).toFixed(2)));
-    let nextMonthConsumptionFinal: number = nextMonthConsumption;
-    let nextMonthSolarFinal: number = nextMonthSolar;
+    // Forecast
+    let nextMonthConsumptionFinal = Math.max(0, parseFloat(((analysisData.usage.avgDailyConsumption || 0) * 30 * (1 + growthRate)).toFixed(2)));
+    let nextMonthSolarFinal = Math.max(0, parseFloat(((analysisData.usage.avgDailySolar || 0) * 30 * (1 + growthRate * 0.5)).toFixed(2)));
     
-    const onnxDailyConsumption: number | null = await runOnnxPrediction({
+    const onnxDailyConsumption = await runOnnxPrediction({
       avgDailyConsumption: analysisData.usage.avgDailyConsumption || 0,
       avgDailySolar: analysisData.usage.avgDailySolar || 0,
       netUsage: analysisData.usage.netUsage || 0,
@@ -484,7 +385,7 @@ serve(async (req: Request): Promise<Response> => {
         solarCapacity: contextModifications.profile?.solarCapacity ?? analysisData.profile.solarCapacity,
         batteryCapacity: contextModifications.profile?.batteryCapacity ?? analysisData.profile.batteryCapacity,
         electricityRate: contextModifications.profile?.electricityRate ?? analysisData.profile.electricityRate,
-        growthRate: 0, // Assume intervention stops growth
+        growthRate: 0,
       };
 
       const predictedDaily: number | null = await runOnnxPrediction(modifiedContext);
@@ -511,8 +412,8 @@ serve(async (req: Request): Promise<Response> => {
       const result = {
         savingsKwh: savingsMonthly,
         savingsCurrency,
-        nudge: template.template(ctx),
-        verb: template.verb,
+        nudge,
+        verb: template.actionVerb,
         category: template.category,
       };
       console.log('predictSavings result', result);
@@ -567,21 +468,17 @@ serve(async (req: Request): Promise<Response> => {
     for (const appliance of highPowerAppliances.slice(0, 2)) {
       const applianceDaily: number = (appliance.power_rating_w / 1000) * (appliance.usage_hours_per_day || 8) / 30;
       const savingsResult = await predictSavings('appliance_upgrade', {
-        usage: {
-          avgDailyConsumption: analysisData.usage.avgDailyConsumption - (applianceDaily * 0.3),
-        }
-      }, {
-        applianceName: appliance.name,
-        currency
-      });
-      if (savingsResult && savingsResult.savingsKwh > 10) {
+        usage: { avgDailyConsumption: analysisData.usage.avgDailyConsumption * 0.70 }
+      }, { applianceName: topInefficient.name.toLowerCase(), currency });
+      if (savingsResult && savingsResult.savingsKwh > 5) {
         recommendations.push({
-          title: `${savingsResult.verb} ${appliance.name}`,
+          title: `${savingsResult.verb} your ${topInefficient.name.toLowerCase()}`,
           description: savingsResult.nudge,
           expected_savings_kwh: savingsResult.savingsKwh,
           expected_savings_currency: savingsResult.savingsCurrency,
-          priority: savingsResult.savingsCurrency > 30 ? 'high' : 'medium',
+          priority: savingsResult.savingsCurrency > 20 ? 'high' : 'medium',
           category: savingsResult.category,
+          confidence: savingsResult.confidence,
         });
       }
     }
@@ -605,33 +502,9 @@ serve(async (req: Request): Promise<Response> => {
             description: savingsResult.nudge,
             expected_savings_kwh: savingsResult.savingsKwh,
             expected_savings_currency: savingsResult.savingsCurrency,
-            priority: savingsResult.savingsCurrency > 25 ? 'high' : 'medium',
+            priority: 'medium',
             category: savingsResult.category,
-          });
-        }
-      }
-    } else if ((analysisData.profile.solarCapacity || 0) === 0 && analysisData.usage.avgDailyConsumption > 20) {
-      if (isDaytime && !isCloudyOrRainy && currentIrradiance > 400) {
-        const estimatedSolarDaily: number = analysisData.usage.avgDailyConsumption * 0.4;
-        const savingsResult = await predictSavings('solar_install', {
-          usage: {
-            avgDailySolar: estimatedSolarDaily,
-            netUsage: analysisData.usage.netUsage - (estimatedSolarDaily * 30),
-          },
-          profile: {
-            solarCapacity: 5,
-          }
-        }, {
-          currency
-        });
-        if (savingsResult && savingsResult.savingsKwh > 50) {
-          recommendations.push({
-            title: `${savingsResult.verb} solar panels`,
-            description: savingsResult.nudge,
-            expected_savings_kwh: savingsResult.savingsKwh,
-            expected_savings_currency: savingsResult.savingsCurrency,
-            priority: savingsResult.savingsCurrency > 40 ? 'high' : 'medium',
-            category: savingsResult.category,
+            confidence: savingsResult.confidence,
           });
         }
       }
@@ -652,8 +525,9 @@ serve(async (req: Request): Promise<Response> => {
           description: savingsResult.nudge,
           expected_savings_kwh: savingsResult.savingsKwh,
           expected_savings_currency: savingsResult.savingsCurrency,
-          priority: 'high',
+          priority: savingsResult.savingsCurrency > 15 ? 'high' : 'medium',
           category: savingsResult.category,
+          confidence: savingsResult.confidence,
         });
       }
     }
@@ -750,6 +624,7 @@ serve(async (req: Request): Promise<Response> => {
       recommendations: uniqueRecommendations.slice(0, 5), // Limit to top 5, one per scenario
       forecast: {
         nextMonthConsumption: nextMonthConsumptionFinal,
+        nextMonthSolarGeneration: nextMonthSolarFinal,
         nextMonthCost: nextMonthCostFinal,
         nextMonthSolar: nextMonthSolarFinal,
         confidence,
@@ -819,14 +694,11 @@ serve(async (req: Request): Promise<Response> => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error('Error in ai-energy-insights function:', error);
-    return new Response(JSON.stringify({ 
-      error: (error as Error).message,
-      success: false 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  } catch (error: any) {
+    console.error('Error in ai-energy-insights:', error);
+    return new Response(
+      JSON.stringify({ error: error.message || 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
