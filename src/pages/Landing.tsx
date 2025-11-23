@@ -60,12 +60,7 @@ const achievements = [
   { icon: "⚡", title: "Efficiency Expert", description: "90% efficiency rating" }
 ];
 
-const stats = [
-  { value: "10,000+", label: "Homes Connected" },
-  { value: "2.5M", label: "kWh Saved" },
-  { value: "98%", label: "Uptime" },
-  { value: "500+", label: "Happy Users" }
-];
+
 
 export default function Landing() {
   const [isVisible, setIsVisible] = useState(false);
@@ -179,15 +174,7 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className={`grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-primary mb-2">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+
         </div>
       </section>
 

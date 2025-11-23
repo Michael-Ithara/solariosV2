@@ -180,26 +180,28 @@ export function OnboardingWizard() {
 
   const completeOnboarding = async () => {
     if (!user) return;
-    
     setIsLoading(true);
+    let onboardingFlagSet = false;
     try {
-      // Update user metadata to mark onboarding as complete
+      // Update user metadata to mark onboarding as complete (robust)
       const { error: metadataError } = await supabase.auth.updateUser({
-        data: { onboarding_completed: true }
+        data: {
+          onboardingComplete: true,
+          onboarding_completed: true,
+          onboarding_version: 1
+        }
       });
-      
       if (metadataError) throw metadataError;
+      onboardingFlagSet = true;
 
-      // Update user profile with onboarding data
+      // ...existing profile/device/simulation logic...
       await updateProfile({
         currency: onboardingData.location.currency,
         electricity_rate: onboardingData.location.electricityRate,
         solar_panel_capacity: onboardingData.solarSystem.capacity || 0,
         dashboard_layout: 'personalized',
-        data_source: 'simulation', // Set to simulation mode after onboarding
+        data_source: 'simulation',
       });
-
-      // If user connected a real smart meter and validated, persist minimal metadata
       if ((onboardingData.smartMeter as any)?.type === 'real' && (onboardingData.smartMeter as any)?.validated) {
         const { error: metaErr } = await supabase.auth.updateUser({
           data: {
@@ -212,8 +214,6 @@ export function OnboardingWizard() {
           console.error('Failed to persist meter metadata:', metaErr);
         }
       }
-
-      // Persist selected devices into appliances table (deduplicate existing)
       try {
         const selectedIds = onboardingData.devices.selectedDevices || [];
         const custom = onboardingData.devices.customDevices || [];
@@ -237,7 +237,6 @@ export function OnboardingWizard() {
           }))
         ];
         if (rows.length > 0) {
-          // Fetch existing appliance names for user to avoid duplicates
           const { data: existing, error: existingErr } = await supabase
             .from('appliances')
             .select('name')
@@ -252,8 +251,6 @@ export function OnboardingWizard() {
       } catch (e) {
         console.error('Failed to persist onboarding devices:', e);
       }
-
-      // Save all onboarding data to profiles table
       try {
         await supabase
           .from('profiles')
@@ -277,8 +274,6 @@ export function OnboardingWizard() {
       } catch (profileErr) {
         console.error('Failed to save profile data:', profileErr);
       }
-
-      // Initialize simulation data - create initial real_time_energy_data entry
       try {
         const now = new Date().toISOString();
         const deviceCount = (onboardingData.devices.selectedDevices?.length || 0) + (onboardingData.devices.customDevices?.length || 0);
@@ -298,28 +293,14 @@ export function OnboardingWizard() {
       } catch (simErr) {
         console.error('Failed to initialize simulation data:', simErr);
       }
-
-      // Mark onboarding as complete in user metadata
-      const { data: updatedUser, error: metaError } = await supabase.auth.updateUser({
-        data: { 
-          onboardingComplete: true,
-          onboarding_completed: true,
-          onboarding_version: 1 
-        }
-      });
-      if (metaError) {
-        console.error('Failed to set onboardingComplete metadata:', metaError);
-      }
-
       // Clear local onboarding state
       reset();
-
-      // Refresh session/user so route guards see the flag immediately
       await refreshUser();
-
-      // Navigate to dashboard using React Router
       navigate('/dashboard', { replace: true });
     } catch (error) {
+      if (!onboardingFlagSet) {
+        alert('Failed to set onboarding completion flag. Please try again or contact support.');
+      }
       console.error('Failed to complete onboarding:', error);
     } finally {
       setIsLoading(false);

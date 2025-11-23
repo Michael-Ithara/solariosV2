@@ -94,8 +94,19 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     } catch {}
   }, [state, user]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
     setState({ currentStepIndex: 0, stepsOrder: DEFAULT_STEPS, data: {}, version: CURRENT_VERSION });
+    // Clear onboarding flags in Supabase user metadata
+    try {
+      await supabase.auth.updateUser({
+        data: {
+          onboardingComplete: false,
+          onboarding_completed: false
+        }
+      });
+    } catch (e) {
+      console.error('Failed to clear onboarding flags:', e);
+    }
   }, []);
 
   const value = useMemo(() => ({ state, setStepIndex, updateStepData, persist, reset }), [state, setStepIndex, updateStepData, persist, reset]);

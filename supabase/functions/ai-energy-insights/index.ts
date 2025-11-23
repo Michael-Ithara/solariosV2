@@ -1,7 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createServerClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/module/deno/index.js";
+const supabase = createServerClient("https://omxvkzykghrcbvoyayjs.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9teHZrenlrZ2hyY2J2b3lheWpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1MDc0NjMsImV4cCI6MjA3MTA4MzQ2M30.D5-DtSSQZlq745I-m-Emk7fkBavj9LH6EkUpUte7bJI");
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
-import { createClient } from "https://deno.land/x/supabase_js@2.39.7/mod.ts";
-import * as ort from "https://deno.land/x/onnxruntime_wasm@1.16.3/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.min.js";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +16,7 @@ let onnxInitError: string | null = null;
 
 async function getOnnxSession(): Promise<ort.InferenceSession | null> {
   if (onnxSession || onnxInitError) return onnxSession;
+  console.log('getOnnxSession called. onnxSession:', !!onnxSession, 'onnxInitError:', onnxInitError);
   try {
     // Configure wasm paths to CDN
     // deno-lint-ignore no-explicit-any
@@ -86,6 +89,7 @@ async function runOnnxPrediction(context: any): Promise<number | null> {
     // deno-lint-ignore no-explicit-any
     const data: any = (outTensor as any)?.data ?? [];
     const val = Array.isArray(data) ? data[0] : (typeof data?.[0] === 'number' ? data[0] : Number(data?.[0] ?? NaN));
+    console.log('runOnnxPrediction', { context, val });
     return typeof val === 'number' && isFinite(val) ? val : null;
   } catch (e) {
     console.error('ONNX inference failed:', e);
@@ -362,61 +366,9 @@ serve(async (req: Request): Promise<Response> => {
     
     const nextMonthCostFinal: number = parseFloat((nextMonthConsumptionFinal * rate).toFixed(2));
     const confidence: 'high' | 'medium' | 'low' = modelUsed === 'xgboost-energy-v1' ? 'high' : 'medium';
-    // Build insights
-    const insights: Insight[] = [];    
-    if (analysisData.usage.peakUsageHour !== null) {
-      const dailyPeakAvg: number | null = analysisData.usage.peakUsageAmount ? parseFloat((analysisData.usage.peakUsageAmount / 30).toFixed(2)) : null;
-      insights.push({
-        title: `Peak usage around ${String(analysisData.usage.peakUsageHour).padStart(2, '0')}:00`,
-        description: dailyPeakAvg ? `This hour averages ~${dailyPeakAvg} kWh/day. Consider shifting flexible loads.` : `Consider shifting flexible loads away from this hour.`,
-        category: 'usage_pattern',
-      });
-    }
-
+    // Build insights (now only personalized, actionable, or empty if not needed)
     const currency: string = profile?.currency || 'USD';
-    insights.push({
-      title: 'Monthly energy cost estimate',
-      description: `Based on recent usage, your monthly cost is approximately ${nextMonthCostFinal.toLocaleString(undefined, { style: 'currency', currency })}.`,
-      category: 'cost',
-    });
-
-    // Contextual validation: only show solar insights during daytime or if solar is present
-    if (analysisData.usage.avgDailySolar > 0) {
-      const solarPercentage: number = Math.round((analysisData.usage.avgDailySolar / (analysisData.usage.avgDailyConsumption || 1)) * 100);
-      insights.push({
-        title: 'Solar contribution',
-        description: `Solar covers ~${solarPercentage}% of daily usage on average.`,
-        category: 'solar',
-      });
-    }
-
-    // Add weather-contextual insight
-    if (currentWeather && isDaytime) {
-      const irradianceQuality: string = currentIrradiance > 700 ? 'excellent' : currentIrradiance > 400 ? 'good' : 'moderate';
-      insights.push({
-        title: 'Current solar conditions',
-        description: `Irradiance at ${currentIrradiance.toFixed(0)} W/m² (${irradianceQuality}). ${isCloudyOrRainy ? 'Cloud cover reducing solar output.' : 'Good conditions for solar generation.'}`,
-        category: 'solar',
-      });
-    }
-
-    // Add grid pricing insight
-    if (currentGridPrice) {
-      insights.push({
-        title: 'Current grid price',
-        description: `Grid electricity at ${currentGridPrice.price_per_kwh.toFixed(2)} ${currency}/kWh (${currentGridPrice.price_tier} rate). ${currentGridPrice.price_tier === 'peak' ? 'Consider reducing usage or shifting to solar.' : 'Good time for grid usage.'}`,
-        category: 'cost',
-      });
-    }
-
-    if (appliances.length > 0) {
-      const top: Appliance = [...appliances].sort((a, b) => (b.power_rating_w || 0) - (a.power_rating_w || 0))[0];
-      insights.push({
-        title: `High-load device: ${top.name}`,
-        description: `Rated at ${top.power_rating_w}W. Scheduling or upgrading this device can reduce bills.`,
-        category: 'efficiency',
-      });
-    }
+    const insights: Insight[] = []; // Only fill if you want to show direct, personalized, actionable insights
 
     // Build appliance-specific context
     const applianceNames: string[] = (appliances || []).map((a: Appliance) => a.name.toLowerCase());
@@ -429,6 +381,7 @@ serve(async (req: Request): Promise<Response> => {
 
 
     // --- Actionable Recommendation Mapping Layer ---
+    // --- New Behavioral Nudge Template Layer ---
     type NudgeTemplate = {
       scenario: string;
       template: (ctx: any) => string;
@@ -436,43 +389,78 @@ serve(async (req: Request): Promise<Response> => {
       category: string;
     };
 
-    // Add/modify templates here for easy scaling
+    // Helper for benefit phrasing
+    function benefitPhrase(ctx: any) {
+      if (ctx.savingsCurrency && ctx.savingsCurrency > 0) {
+        return `to save ${ctx.savingsCurrency.toLocaleString(undefined, { style: 'currency', currency: ctx.currency })}`;
+      }
+      if (ctx.savingsKwh && ctx.savingsKwh > 0) {
+        return `to save energy for ${Math.round(ctx.savingsKwh / (ctx.avgDailyConsumption || 1))} hours`;
+      }
+      if (ctx.treesPlanted && ctx.treesPlanted > 0) {
+        return `to have the same impact as planting ${ctx.treesPlanted} trees`;
+      }
+      return '';
+    }
+
+    // Add/modify templates here for easy scaling, all imperative, behavior-focused, and humanized
     const nudgeTemplates: NudgeTemplate[] = [
       {
         scenario: 'peak_shift',
         verb: 'Shift',
         category: 'behavior',
-        template: (ctx) => `Shift your ${ctx.flexibleAppliances} away from ${ctx.peakHour}:00 to save up to ${ctx.savingsCurrency.toLocaleString(undefined, { style: 'currency', currency: ctx.currency })} this month.`
+        template: (ctx) => `Shift your ${ctx.flexibleAppliances} from ${ctx.peakHour}:00 to a different time ${benefitPhrase(ctx)}.`
       },
       {
         scenario: 'appliance_upgrade',
-        verb: 'Upgrade',
+        verb: 'Replace',
         category: 'appliance',
-        template: (ctx) => `Upgrade your ${ctx.applianceName} to an energy-efficient model this week to save about ${ctx.savingsCurrency.toLocaleString(undefined, { style: 'currency', currency: ctx.currency })} every month.`
+        template: (ctx) => `Replace your ${ctx.applianceName} this week ${benefitPhrase(ctx)}.`
       },
       {
         scenario: 'solar_optimization',
-        verb: 'Use',
+        verb: 'Run',
         category: 'solar',
-        template: (ctx) => `Use more of your solar power by running high-load appliances at midday. This could save you ${ctx.savingsCurrency.toLocaleString(undefined, { style: 'currency', currency: ctx.currency })} monthly.`
+        template: (ctx) => `Run your high-load appliances at midday ${benefitPhrase(ctx)}.`
       },
       {
         scenario: 'solar_install',
         verb: 'Install',
         category: 'solar',
-        template: (ctx) => `Install rooftop solar to offset up to 40% of your usage and save about ${ctx.savingsCurrency.toLocaleString(undefined, { style: 'currency', currency: ctx.currency })} per month.`
+        template: (ctx) => `Install solar panels this month ${benefitPhrase(ctx)}.`
       },
       {
         scenario: 'behavior_change',
-        verb: 'Reduce',
+        verb: 'Unplug',
         category: 'behavior',
-        template: (ctx) => `Reduce your energy use by unplugging unused devices and turning off lights to save ${ctx.savingsCurrency.toLocaleString(undefined, { style: 'currency', currency: ctx.currency })} this month.`
+        template: (ctx) => `Unplug unused devices and turn off lights tonight ${benefitPhrase(ctx)}.`
       },
       {
         scenario: 'grid_timing',
         verb: 'Schedule',
         category: 'cost',
-        template: (ctx) => `Schedule high-consumption tasks for off-peak hours to cut your bill by up to 15% and save ${ctx.savingsCurrency.toLocaleString(undefined, { style: 'currency', currency: ctx.currency })}.`
+        template: (ctx) => `Schedule your laundry or dishes for off-peak hours ${benefitPhrase(ctx)}.`
+      },
+      // Example: direct cost impact
+      {
+        scenario: 'peak_hour_cost_impact',
+        verb: 'Avoid',
+        category: 'cost',
+        template: (ctx) => `Avoid using energy between ${ctx.peakHourStart}:00 and ${ctx.peakHourEnd}:00 ${benefitPhrase(ctx)}.`
+      },
+      // Example: weather context
+      {
+        scenario: 'external_temp_high',
+        verb: 'Close',
+        category: 'weather',
+        template: (ctx) => `Close your blinds this afternoon to keep your home cooler naturally.`
+      },
+      // Example: HVAC impact
+      {
+        scenario: 'HVAC_impact_high',
+        verb: 'Lower',
+        category: 'appliance',
+        template: (ctx) => `Lower your AC by 2 degrees tonight ${benefitPhrase(ctx)}.`
       },
     ];
 
@@ -500,29 +488,44 @@ serve(async (req: Request): Promise<Response> => {
       };
 
       const predictedDaily: number | null = await runOnnxPrediction(modifiedContext);
-      if (predictedDaily === null) return null;
+      console.log('predictSavings', { scenario, modifiedContext, predictedDaily, baselineDaily });
+      if (predictedDaily === null) {
+        console.log('predictSavings: predictedDaily is null for scenario', scenario);
+        return null;
+      }
       const savingsDaily: number = Math.max(0, baselineDaily - predictedDaily);
       const savingsMonthly: number = parseFloat((savingsDaily * 30).toFixed(2));
       const savingsCurrency = parseFloat((savingsMonthly * rate).toFixed(2));
-
       // Find template for this scenario
       const template = nudgeTemplates.find(t => t.scenario === scenario);
-      if (!template) return null;
+      if (!template) {
+        console.log('predictSavings: no template found for scenario', scenario);
+        return null;
+      }
       const ctx = { ...nudgeContext, savingsKwh: savingsMonthly, savingsCurrency, currency };
-      return {
+      // Calculate trees planted equivalent (optional, for future use)
+      if (!ctx.treesPlanted && savingsMonthly > 0) {
+        ctx.treesPlanted = Math.round(savingsMonthly * 0.05); // Example: 1 tree per 20 kWh
+      }
+      ctx.avgDailyConsumption = baselineDaily;
+      const result = {
         savingsKwh: savingsMonthly,
         savingsCurrency,
         nudge: template.template(ctx),
         verb: template.verb,
         category: template.category,
       };
+      console.log('predictSavings result', result);
+      return result;
     };
 
     // --- End Mapping Layer ---
 
+    // --- Behavioral Recommendation Engine ---
     const recommendations: Recommendation[] = [];
+    console.log('analysisData', analysisData);
 
-    // 1) PEAK HOUR LOAD SHIFTING - Only recommend if peak usage is significant
+    // 1) PEAK HOUR LOAD SHIFTING (Behavioral, one clear action)
     if (analysisData.usage.peakUsageHour !== null && analysisData.usage.peakUsageAmount) {
       const dailyPeakAvg: number = analysisData.usage.peakUsageAmount / 30;
       if (dailyPeakAvg / analysisData.usage.avgDailyConsumption > 0.15) {
@@ -544,7 +547,7 @@ serve(async (req: Request): Promise<Response> => {
           });
           if (savingsResult && savingsResult.savingsKwh > 5) {
             recommendations.push({
-              title: `${savingsResult.verb} ${flexibleAppliances} (peak hour)`,
+              title: `${savingsResult.verb} ${flexibleAppliances}`,
               description: savingsResult.nudge,
               expected_savings_kwh: savingsResult.savingsKwh,
               expected_savings_currency: savingsResult.savingsCurrency,
@@ -556,11 +559,11 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // 2) APPLIANCE EFFICIENCY - Target specific high-consumption appliances
+    // 2) APPLIANCE EFFICIENCY (Behavioral, one clear action)
     const highPowerAppliances: Appliance[] = appliances
       .filter((a: Appliance) => (a.power_rating_w || 0) >= 1000)
       .sort((a: Appliance, b: Appliance) => (b.power_rating_w || 0) - (a.power_rating_w || 0));
-    
+
     for (const appliance of highPowerAppliances.slice(0, 2)) {
       const applianceDaily: number = (appliance.power_rating_w / 1000) * (appliance.usage_hours_per_day || 8) / 30;
       const savingsResult = await predictSavings('appliance_upgrade', {
@@ -583,7 +586,7 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // 3) SOLAR OPTIMIZATION - Only if user has solar and suboptimal self-consumption
+    // 3) SOLAR OPTIMIZATION (Behavioral, one clear action)
     if ((analysisData.profile.solarCapacity || 0) > 0 && analysisData.usage.avgDailySolar > 0) {
       const solarSelfConsumption: number = Math.min(analysisData.usage.avgDailySolar, analysisData.usage.avgDailyConsumption);
       const solarExcess: number = Math.max(0, analysisData.usage.avgDailySolar - analysisData.usage.avgDailyConsumption);
@@ -598,7 +601,7 @@ serve(async (req: Request): Promise<Response> => {
         });
         if (savingsResult && savingsResult.savingsKwh > 15) {
           recommendations.push({
-            title: `${savingsResult.verb} more solar at home`,
+            title: `${savingsResult.verb} appliances at midday`,
             description: savingsResult.nudge,
             expected_savings_kwh: savingsResult.savingsKwh,
             expected_savings_currency: savingsResult.savingsCurrency,
@@ -634,7 +637,7 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // 4) BEHAVIOR-BASED - Only if growth rate is positive
+    // 4) BEHAVIOR-BASED (Behavioral, one clear action)
     if (growthRate > 0.05) {
       const savingsResult = await predictSavings('behavior_change', {
         usage: {
@@ -645,7 +648,7 @@ serve(async (req: Request): Promise<Response> => {
       });
       if (savingsResult && savingsResult.savingsKwh > 10) {
         recommendations.push({
-          title: `${savingsResult.verb} energy use`,
+          title: `${savingsResult.verb} unused devices`,
           description: savingsResult.nudge,
           expected_savings_kwh: savingsResult.savingsKwh,
           expected_savings_currency: savingsResult.savingsCurrency,
@@ -655,7 +658,7 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // 5) GRID PRICING OPTIMIZATION - Only if dynamic pricing is available
+    // 5) GRID PRICING OPTIMIZATION (Behavioral, one clear action)
     if (currentGridPrice && currentGridPrice.price_tier === 'peak') {
       const savingsResult = await predictSavings('grid_timing', {
         usage: {
@@ -666,7 +669,7 @@ serve(async (req: Request): Promise<Response> => {
       });
       if (savingsResult && savingsResult.savingsKwh > 8) {
         recommendations.push({
-          title: `${savingsResult.verb} tasks for off-peak`,
+          title: `${savingsResult.verb} laundry for off-peak`,
           description: savingsResult.nudge,
           expected_savings_kwh: savingsResult.savingsKwh,
           expected_savings_currency: savingsResult.savingsCurrency,
@@ -676,13 +679,75 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // Example: direct cost impact (IFTTT logic, e.g. peak hour cost)
+    if (analysisData.usage.peakUsageHour !== null && currentGridPrice && currentGridPrice.price_tier === 'peak') {
+      const savingsResult = await predictSavings('peak_hour_cost_impact', {
+        usage: {
+          avgDailyConsumption: analysisData.usage.avgDailyConsumption * 0.95,
+        }
+      }, {
+        peakHourStart: String(analysisData.usage.peakUsageHour).padStart(2, '0'),
+        peakHourEnd: String((analysisData.usage.peakUsageHour + 2) % 24).padStart(2, '0'),
+        currency
+      });
+      if (savingsResult && savingsResult.savingsKwh > 5) {
+        recommendations.push({
+          title: `${savingsResult.verb} peak hour usage`,
+          description: savingsResult.nudge,
+          expected_savings_kwh: savingsResult.savingsKwh,
+          expected_savings_currency: savingsResult.savingsCurrency,
+          priority: 'medium',
+          category: savingsResult.category,
+        });
+      }
+    }
+
+    // Example: weather context (IFTTT logic, e.g. hot day)
+    if (currentWeather && currentWeather.weather_condition && currentWeather.weather_condition.toLowerCase().includes('hot')) {
+      recommendations.push({
+        title: 'Close blinds this afternoon',
+        description: nudgeTemplates.find(t => t.scenario === 'external_temp_high')?.template({}) || '',
+        expected_savings_kwh: 0,
+        expected_savings_currency: 0,
+        priority: 'medium',
+        category: 'weather',
+      });
+    }
+
+    // Example: HVAC impact (IFTTT logic, e.g. AC is top device)
+    if (applianceNames.some(n => n.includes('ac') || n.includes('hvac'))) {
+      const savingsResult = await predictSavings('HVAC_impact_high', {
+        usage: {
+          avgDailyConsumption: analysisData.usage.avgDailyConsumption * 0.96,
+        }
+      }, {
+        currency
+      });
+      if (savingsResult && savingsResult.savingsKwh > 5) {
+        recommendations.push({
+          title: `${savingsResult.verb} AC tonight`,
+          description: savingsResult.nudge,
+          expected_savings_kwh: savingsResult.savingsKwh,
+          expected_savings_currency: savingsResult.savingsCurrency,
+          priority: 'medium',
+          category: savingsResult.category,
+        });
+      }
+    }
+
+    // Only show one clear action per message (limit to 1 per scenario)
+    const uniqueRecommendations: Recommendation[] = [];
+    const seenScenarios = new Set();
+    for (const rec of recommendations) {
+      if (!seenScenarios.has(rec.title)) {
+        uniqueRecommendations.push(rec);
+        seenScenarios.add(rec.title);
+      }
+    }
+
     const analysisResult: AnalysisResult = {
       insights,
-      recommendations: recommendations.sort((a, b) => {
-        const priorityOrder = { high: 0, medium: 1, low: 2 };
-        return priorityOrder[a.priority] - priorityOrder[b.priority] || 
-               b.expected_savings_currency - a.expected_savings_currency;
-      }).slice(0, 5), // Limit to top 5 recommendations
+      recommendations: uniqueRecommendations.slice(0, 5), // Limit to top 5, one per scenario
       forecast: {
         nextMonthConsumption: nextMonthConsumptionFinal,
         nextMonthCost: nextMonthCostFinal,
@@ -743,6 +808,7 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log(`Generated ${analysisResult.recommendations.length} recommendations for user ${userId}`);
 
+    console.log('Final recommendations', analysisResult.recommendations);
     return new Response(JSON.stringify({
       success: true,
       insights: analysisResult.insights,

@@ -130,9 +130,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true);
+      // If no session, treat as already signed out
+      if (!session) {
+        setUser(null);
+        setSession(null);
+        setLoading(false);
+        console.log('No session found, treated as signed out');
+        return;
+      }
       const { error } = await authService.signOut();
-      if (error) throw error;
-      
+      if (error) {
+        // Ignore AuthSessionMissingError
+        if (error.name === 'AuthSessionMissingError') {
+          setUser(null);
+          setSession(null);
+          setLoading(false);
+          console.log('AuthSessionMissingError ignored, treated as signed out');
+          return;
+        }
+        throw error;
+      }
       console.log('Sign out successful');
     } catch (error) {
       console.error('Sign out error:', error);
