@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Power, Settings, TrendingUp, TrendingDown } from "lucide-react";
+import { Power, Settings, TrendingUp, TrendingDown, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ApplianceCardProps {
@@ -17,11 +17,13 @@ interface ApplianceCardProps {
   lastUpdate: string;
   onToggle?: () => void;
   onSettings?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const statusStyles = {
   normal: "bg-success/10 text-success border-success/20",
-  high: "bg-warning/10 text-warning border-warning/20", 
+  high: "bg-warning/10 text-warning border-warning/20",
   anomaly: "bg-danger/10 text-danger border-danger/20"
 };
 
@@ -30,6 +32,22 @@ const statusLabels = {
   high: "High Usage",
   anomaly: "Anomaly"
 };
+
+function formatRelativeTime(dateString: string): string {
+  const now = Date.now();
+  const then = new Date(dateString).getTime();
+  const diffMs = now - then;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHr / 24);
+
+  if (diffSec < 60) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return new Date(dateString).toLocaleDateString();
+}
 
 export function ApplianceCard({
   name,
@@ -42,7 +60,9 @@ export function ApplianceCard({
   trend,
   lastUpdate,
   onToggle,
-  onSettings
+  onSettings,
+  onEdit,
+  onDelete
 }: ApplianceCardProps) {
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -64,9 +84,30 @@ export function ApplianceCard({
             </div>
           </div>
         </div>
-        <Badge variant="outline" className={statusStyles[status]}>
-          {statusLabels[status]}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={statusStyles[status]}>
+            {statusLabels[status]}
+          </Badge>
+          {(onEdit || onDelete || onSettings) && (
+            <div className="flex items-center gap-1">
+              {onEdit && (
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit} title="Edit appliance">
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-danger hover:bg-danger/10" onClick={onDelete} title="Delete appliance">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {onSettings && (
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onSettings} title="Settings">
+                  <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -102,34 +143,24 @@ export function ApplianceCard({
         </div>
 
         {/* Last Update */}
-        <p className="text-xs text-muted-foreground">
-          Last update: {lastUpdate}
+        <p className="text-xs text-muted-foreground" title={lastUpdate}>
+          Updated {formatRelativeTime(lastUpdate)}
         </p>
 
-        {/* Actions */}
-        <div className="flex gap-2 pt-2">
-          {onToggle && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+        {/* Toggle Action */}
+        {onToggle && (
+          <div className="pt-2">
+            <Button
+              variant="outline"
+              size="sm"
               onClick={onToggle}
-              className="flex-1"
+              className="w-full"
             >
               <Power className="h-4 w-4 mr-2" />
               Toggle
             </Button>
-          )}
-          {onSettings && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={onSettings}
-              className="px-2"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

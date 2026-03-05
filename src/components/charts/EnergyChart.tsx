@@ -7,10 +7,11 @@ import { useAuth } from '@/contexts/AuthContext';
 interface EnergyChartProps {
   type?: 'line' | 'area';
   height?: number;
+  fillHeight?: boolean;
   simulationData?: any[];
 }
 
-export function EnergyChart({ type = 'line', height = 300, simulationData }: EnergyChartProps) {
+export function EnergyChart({ type = 'line', height = 300, fillHeight = false, simulationData }: EnergyChartProps) {
   const [realTimeData, setRealTimeData] = useState<any[]>([]);
   const location = useLocation();
   const { user } = useAuth();
@@ -155,7 +156,7 @@ export function EnergyChart({ type = 'line', height = 300, simulationData }: Ene
   const ChartComponent = type === 'area' ? AreaChart : LineChart;
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <ResponsiveContainer width="100%" height={fillHeight ? "100%" : height}>
       <ChartComponent data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
         <XAxis 

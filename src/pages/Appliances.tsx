@@ -242,20 +242,11 @@ export default function Appliances() {
             lastUpdate={appliance.lastUpdate}
             onToggle={() => handleToggleAppliance(appliance.id)}
             onSettings={!isDemoMode ? () => handleApplianceSettings(appliance.id) : undefined}
+            onEdit={!isDemoMode ? () => handleApplianceSettings(appliance.id) : undefined}
+            onDelete={!isDemoMode ? () => handleDeleteAppliance(appliance.id) : undefined}
           />
         ))}
       </div>
-
-      {!isDemoMode && (
-        <div className="grid gap-2 md:grid-cols-3">
-          {appliances.map((a) => (
-            <div key={`actions-${a.id}`} className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleApplianceSettings(a.id)}>Edit</Button>
-              <Button variant="destructive" size="sm" onClick={() => handleDeleteAppliance(a.id)}>Delete</Button>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-4">

@@ -155,7 +155,7 @@ export default function Dashboard() {
   const showNoDevicesPrompt = !isDemoMode && appliances.length === 0;
 
   return (
-    <div className="flex-1 space-y-8 p-6 bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="flex-1 space-y-6 p-6 bg-gradient-to-br from-background via-background to-muted/20">
       {/* Professional Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -396,8 +396,8 @@ export default function Dashboard() {
       {/* Advanced Analytics Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Energy Trends Chart - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <Card className="border-primary/10 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+        <div className="lg:col-span-2 flex">
+          <Card className="flex flex-col flex-1 border-primary/10 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -420,9 +420,9 @@ export default function Dashboard() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-2">
-              <EnergyChart 
-                height={400}
+            <CardContent className="flex-1 min-h-[400px] min-h-0 pt-2">
+              <EnergyChart
+                fillHeight
                 simulationData={!isDemoMode && energyData.length > 0 ? energyData : undefined}
               />
             </CardContent>
@@ -474,15 +474,15 @@ export default function Dashboard() {
       {/* Enhanced Daily Summary with Financial Focus */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Daily Energy Stats */}
-        <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+        <Card className="relative overflow-hidden border-energy-solar/20 bg-gradient-to-br from-energy-solar/10 via-energy-solar/5 to-transparent">
+          <div className="absolute inset-0 bg-gradient-to-br from-energy-solar/5 to-transparent" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative">
             <div>
               <CardTitle className="text-lg font-semibold">Daily Energy</CardTitle>
               <p className="text-sm text-muted-foreground">Consumption & Production</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-gradient-energy flex items-center justify-center shadow-energy">
-              <Home className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-energy-solar/20 flex items-center justify-center">
+              <Home className="h-6 w-6 text-energy-solar" />
             </div>
           </CardHeader>
           <CardContent className="space-y-4 relative">
@@ -494,7 +494,7 @@ export default function Dashboard() {
               <span className="text-sm text-muted-foreground">Generated</span>
               <span className="text-lg font-bold text-energy-solar">{dashboardData.dailySolar.toFixed(1)} kWh</span>
             </div>
-            <div className="flex items-center justify-between pt-2 border-t border-primary/20">
+            <div className="flex items-center justify-between pt-2 border-t border-energy-solar/20">
               <span className="text-sm font-medium">Net Balance</span>
               <span className={`text-lg font-bold ${
                 dashboardData.dailySolar >= dashboardData.dailyConsumption ? 'text-success' : 'text-energy-consumption'
@@ -507,31 +507,31 @@ export default function Dashboard() {
         </Card>
 
         {/* Cost Analysis */}
-        <Card className="relative overflow-hidden border-energy-consumption/20 bg-gradient-to-br from-energy-consumption/10 via-energy-consumption/5 to-transparent">
-          <div className="absolute inset-0 bg-gradient-to-br from-energy-consumption/5 to-transparent" />
+        <Card className="relative overflow-hidden border-energy-grid/20 bg-gradient-to-br from-energy-grid/10 via-energy-grid/5 to-transparent">
+          <div className="absolute inset-0 bg-gradient-to-br from-energy-grid/5 to-transparent" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative">
             <div>
               <CardTitle className="text-lg font-semibold">Cost Analysis</CardTitle>
               <p className="text-sm text-muted-foreground">Daily & Monthly Projections</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-energy-consumption/20 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-energy-consumption" />
+            <div className="w-12 h-12 rounded-xl bg-energy-grid/20 flex items-center justify-center">
+              <DollarSign className="h-6 w-6 text-energy-grid" />
             </div>
           </CardHeader>
           <CardContent className="space-y-4 relative">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Today's Cost</span>
-              <span className="text-lg font-bold text-energy-consumption">
+              <span className="text-lg font-bold text-energy-grid">
                 {currencyLoading ? '...' : formatCurrency(dashboardData.dailyConsumption * (profile?.electricity_rate ?? 0.12))}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Monthly Proj.</span>
-              <span className="text-lg font-bold">
+              <span className="text-lg font-bold text-energy-grid">
                 {currencyLoading ? '...' : formatCurrency(dashboardData.dailyConsumption * (profile?.electricity_rate ?? 0.12) * 30)}
               </span>
             </div>
-            <div className="flex items-center justify-between pt-2 border-t border-energy-consumption/20">
+            <div className="flex items-center justify-between pt-2 border-t border-energy-grid/20">
               <span className="text-sm font-medium">Monthly Savings</span>
               <span className="text-lg font-bold text-success">
                 {currencyLoading ? '...' : formatCurrency(dashboardData.monthlySavings)}
