@@ -396,8 +396,8 @@ export default function Dashboard() {
       {/* Advanced Analytics Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Energy Trends Chart - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <Card className="border-primary/10 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+        <div className="lg:col-span-2 flex">
+          <Card className="flex flex-col flex-1 border-primary/10 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -420,9 +420,9 @@ export default function Dashboard() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-2">
-              <EnergyChart 
-                height={400}
+            <CardContent className="flex-1 min-h-[400px] min-h-0 pt-2">
+              <EnergyChart
+                fillHeight
                 simulationData={!isDemoMode && energyData.length > 0 ? energyData : undefined}
               />
             </CardContent>
