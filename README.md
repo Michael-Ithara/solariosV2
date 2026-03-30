@@ -32,17 +32,6 @@ We transform raw energy data into **actionable insights** — saving money, redu
 
 ---
 
-## 👨‍💻 Developer Setup
-
-Clone the repository and get started locally:
-
-```bash
-git clone <PRIVATE_REPO_URL>
-cd solariosV2
-npm install
-npm run dev
-```
-
 🔒 Licensing
 
 Solarios is proprietary software owned by Michael Kihuyu.
