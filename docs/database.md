@@ -1,0 +1,212 @@
+# Database
+
+Solarios uses **Supabase Postgres** with Row-Level Security (RLS) enabled. All tables are in the `public` schema.
+
+## Supabase Client
+
+- Client singleton: `src/integrations/supabase/client.ts`
+- Auto-generated TypeScript types: `src/integrations/supabase/types.ts`
+- Project URL: `https://omxvkzykghrcbvoyayjs.supabase.co`
+- The anon/publishable key is safe to expose in frontend code
+
+Import pattern:
+```ts
+import { supabase } from '@/integrations/supabase/client';
+```
+
+---
+
+## Tables
+
+### `profiles`
+User profile data, created after signup.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | uuid | FK → auth.users, primary key |
+| `electricity_rate` | float | Local electricity cost per kWh |
+| `data_source` | text | `'simulation'` or `'iot'` |
+| `created_at` | timestamptz | |
+| `updated_at` | timestamptz | |
+
+---
+
+### `appliances`
+User-registered physical or simulated appliances.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK → profiles |
+| `name` | text | |
+| `type` | text | Device category |
+| `wattage` | float | Power consumption in watts |
+| `is_active` | bool | Currently running |
+| `created_at` | timestamptz | |
+
+---
+
+### `device_instances`
+Instances of devices in the simulation engine, mapped from device templates.
+
+---
+
+### `energy_logs`
+Time-series energy consumption records.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK → profiles |
+| `consumption_kwh` | float | Total consumption |
+| `solar_kwh` | float | Solar generation |
+| `grid_kwh` | float | Grid import/export |
+| `timestamp` | timestamptz | Log time |
+| `cost` | float | Cost in user's currency |
+
+---
+
+### `solar_data`
+Solar panel generation records.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK → profiles |
+| `generation_kwh` | float | |
+| `timestamp` | timestamptz | |
+| `weather_condition` | text | Sunny, cloudy, etc. |
+
+---
+
+### `ai_recommendations`
+AI-generated energy-saving nudges.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK → profiles |
+| `title` | text | Short recommendation title |
+| `description` | text | Full nudge text |
+| `priority` | enum | `recommendation_priority`: high/medium/low |
+| `expected_savings_kwh` | float | Projected kWh saving |
+| `expected_savings_currency` | float | Projected cost saving |
+| `created_at` | timestamptz | |
+
+---
+
+### `ai_forecasts`
+ML-generated energy consumption and generation forecasts.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK → profiles |
+| `target` | enum | `forecast_target`: consumption/generation |
+| `value` | float | Forecasted value (kWh) |
+| `period_start` | timestamptz | |
+| `period_end` | timestamptz | |
+| `model` | text | Model identifier |
+| `created_at` | timestamptz | |
+
+---
+
+### `achievements`
+Global achievement definitions (not per-user).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | PK |
+| `code` | text | Unique identifier (e.g. `'first_solar_hour'`) |
+| `title` | text | Display name |
+| `description` | text | |
+| `category` | text | Group/category |
+| `max_progress` | int | Progress needed to unlock |
+| `points` | int | XP awarded on unlock |
+
+---
+
+### `user_achievements`
+Per-user achievement progress and unlock status.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK → profiles |
+| `achievement_id` | uuid | FK → achievements |
+| `progress` | int | Current progress toward `max_progress` |
+| `unlocked` | bool | Whether achievement is earned |
+| `unlocked_at` | timestamptz | |
+
+---
+
+### `smart_meters`
+Smart meter device configurations.
+
+---
+
+### `inverters`
+Solar inverter data linked to user profiles.
+
+---
+
+### `circuits`
+Electrical panel circuit definitions.
+
+---
+
+### `ai_notifications`
+AI-generated in-app notifications.
+
+---
+
+### `alerts`
+System alerts (anomaly detection, threshold breaches).
+
+---
+
+### `user_roles`
+Role-based access control table.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | uuid | FK → auth.users |
+| `role` | text | `'admin'`, `'user'`, `'guest'` |
+
+---
+
+## Enums
+
+| Enum | Values |
+|------|--------|
+| `recommendation_priority` | `high`, `medium`, `low` |
+| `forecast_target` | `consumption`, `generation` |
+
+---
+
+## RLS Pattern
+
+Every table has RLS enabled. The standard policy pattern is:
+
+```sql
+-- Users can only read their own rows
+CREATE POLICY "Users can view own data"
+ON table_name FOR SELECT
+USING (auth.uid() = user_id);
+```
+
+Edge functions use the **service role key** (env var `SUPABASE_SERVICE_ROLE_KEY`) to bypass RLS and process data for all users.
+
+---
+
+## Type Generation
+
+Types are auto-generated by Supabase CLI and committed to:
+```
+src/integrations/supabase/types.ts
+```
+
+When the schema changes, regenerate with:
+```bash
+supabase gen types typescript --project-id omxvkzykghrcbvoyayjs > src/integrations/supabase/types.ts
+```
